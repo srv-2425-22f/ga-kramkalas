@@ -10,9 +10,9 @@ Skapa en AI-modell som kan vara en fiende i ett spel.
 ## KRAV:
 
 ### Nödvändigt
-Skapa en arkitektur
-Ta emot data från spelmiljön
-Skicka data till spelmiljön
+* Skapa en arkitektur
+* Ta emot data från spelmiljön
+* Skicka data till spelmiljön
 
 ### Viktigt
 Anpassa sig till miljön
