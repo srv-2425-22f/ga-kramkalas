@@ -15,7 +15,7 @@ Skapa en AI-modell som kan vara en fiende i ett spel.
 * Skicka data till spelmiljön
 
 ### Viktigt
-Anpassa sig till miljön
+* Anpassa sig till miljön
 
 ### Om möjligt
-Flera modeller (fiender)
+* Flera modeller (fiender)
