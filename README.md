@@ -1,8 +1,8 @@
 # ga-kramkalas
 ga-kramkalas created by GitHub Classroom
 
-#SYFTE:
+## SYFTE:
 
-#MÅL:
+## MÅL:
 
-#KRAV:
+## KRAV:
