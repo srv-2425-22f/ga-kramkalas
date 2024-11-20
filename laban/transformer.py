@@ -109,14 +109,14 @@ test_transform = transforms.Compose([
 ])
 
 train_data = datasets.MNIST(
-    root="transformer/data", 
+    root="data", 
     train=True, 
     download=True, 
     transform=train_transform, 
     target_transform=None 
 )
 test_data = datasets.MNIST(
-    root="transformer/data",
+    root="data",
     train=False,
     download=True,
     transform=test_transform,
