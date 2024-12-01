@@ -1,97 +1,160 @@
 import pygame
 import random
+from collections import namedtuple
+import numpy as np
 
 pygame.init()
-
-SCREEN_WIDTH = 800
-SCREEN_HEIGHT = 600
-FPS = 60
-
-# General game values
-screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-clock = pygame.time.Clock()
-run = True
-score = 0
-x = 0
-y = 1
-width = 2
-height = 3
 font = pygame.font.Font("arial.ttf", 25)
 
-# Initiate player
-player_size = 50
-allow_jump = True
-velocity = 0
-gravity = 0.2
-player = pygame.Rect(300, 250, player_size, player_size)
+SPEED = 50
+PLAYER_SIZE = 20
 
-# Initiate pipes
-pipes = []
-pipe_width = 80
-pipe_gap = 200
-pipe_distance = 400
-number_of_pipes = 3
-pipe_velocity = -2
-for pipe in range(number_of_pipes):
-    pipe_height = random.randint(100, 300)
-    pipe = pygame.Rect(600+pipe*pipe_distance, 0, pipe_width, pipe_height)
-    pipes.append(pipe)
+# Colors
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+YELLOW = (255, 255, 0)
+GREEN = (0, 255, 50)
 
+Point = namedtuple("Point", "x, y, h")
 
-while run:
-    screen.fill((0))  
+class FlappyGameAI:
 
-    jump = False       
+    def __init__(self, width=600, height=400):
+        self.width = width
+        self.height = height
+        # Initialize display
+        self.display = pygame.display.set_mode((self.width, self.height))
+        pygame.display.set_caption("Flappy Bird")
+        self.clock = pygame.time.Clock()
+        self.reset()
 
-    # Event handler
-    for event in pygame.event.get():   
-        if event.type == pygame.QUIT:
-            run = False
+    def reset(self):
+        # Bird
+        self.bird = Point(2 * self.width / 3, self.height / 2, PLAYER_SIZE)
+        self.gravity = 0.2
+        self.velocity = 0
+
+        # Pipes
+        self.pipes = []
+        self.pipe_distance = 160
+        self.pipe_gap = 80
+        self.pipe_width = 40
+        self.pipe_velocity = -2
+        for pipe in range(3):
+            height = random.randint(self.pipe_gap, self.height - self.pipe_gap)
+            pipe = Point(500 + pipe * (self.pipe_distance + self.pipe_width), 0, height)
+            self.pipes.append(pipe)
+
+        self.score = 0
+        self.frame_iteration = 0
+
+    def play_step(self, action):
+        self.frame_iteration += 1
+        # Input
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+
+            # # User input
+            # if event.type == pygame.KEYDOWN:
+            #     if event.key == pygame.K_SPACE and allow_jump:
+            #         action = [1]
+            #         allow_jump = False
+            # if event.type == pygame.KEYUP:
+            #     if event.key == pygame.K_SPACE:
+            #         allow_jump = True
         
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_SPACE and allow_jump:
-                jump = True
-                allow_jump = False
+        # Move
+        self._move_bird(action)
+        self._move_pipes()
 
-        if event.type == pygame.KEYUP:
-            if event.key == pygame.K_SPACE:
-                allow_jump = True
+        # Check game over
+        reward = 0
+        game_over = False
+        if self.is_collision():
+            game_over = True
+            reward = -10
+            return reward, game_over, self.score
         
-    # Player
-    if jump:
-        velocity = -6    
-    player.move_ip(0, velocity)
-    velocity += gravity
-    pygame.draw.rect(screen, (255, 255, 0), player)
-    if player[y] < 0 or player[y]+player_size > SCREEN_HEIGHT:
-        run = False
+        # Check if passed through pipe
+        for pipe in self.pipes:
+            if self.bird.x == pipe.x + self.pipe_width - self.pipe_velocity:
+                self.score += 1
+                reward = 10           
+        
+        # Update UI and clock
+        self.clock.tick(SPEED)
+        self._update_ui()
 
-    # Pipe
-    for pipe in pipes:
-        if pipe[x] < -pipe_width:
-            pipe_height = random.randint(100, 300)
-            pipe[x] = 1100
-            pipe[height] = pipe_height
-        pipe.move_ip(pipe_velocity, 0)
+        # Return game over and score
+        return reward, game_over, self.score
+    
+    def is_collision(self, pt=None):
+        if pt is None:
+            pt = self.bird
 
-        bottom_pipe = (pipe[x], pipe[height]+pipe_gap, pipe[width], SCREEN_HEIGHT-(pipe[height]+pipe_gap))
-        pygame.draw.rect(screen, (0, 255, 0), pipe)
-        pygame.draw.rect(screen, (0, 255, 0), bottom_pipe)    
+        # Hits top or bottom
+        if (pt.y < 0 or pt.y > self.height - PLAYER_SIZE):
+            return True
+        
+        # Hits pipe
+        for index, pipe in enumerate(self.pipes):          
+            bottom_pipe = self.bottom_pipes[index]
+            if pt.x + pt.h >= pipe.x and pt.x <= pipe.x:
+                if pt.y <= pipe.h or pt.y+pt.h >= bottom_pipe.y:
+                    return True
+                
+        return False
 
-        if player[x]  + player_size >= pipe[x] and player[x] <= pipe[x]:
-            if player[y] <= pipe[height] or player[y]+player_size >= bottom_pipe[y]:
-                run = False       
+    def _update_ui(self):
+        self.display.fill(BLACK)
 
-        if player[x] == pipe[0] + pipe_width - pipe_velocity:
-            score += 1
-            print(f"Score: {score}")
+        bird = self.bird
+        pygame.draw.rect(
+            self.display, YELLOW, pygame.Rect(bird.x, bird.y, bird.h, bird.h)
+        )
 
-    # Update game
-    text = font.render(f"Score: {score}", True, (255, 255, 255))
-    textRect = text.get_rect()
-    screen.blit(text, textRect)    
-    clock.tick(FPS)
+        for index, pipe in enumerate(self.pipes):
+            bottom_pipe = self.bottom_pipes[index]
+            pygame.draw.rect(
+                self.display, GREEN, pygame.Rect(pipe.x, pipe.y, pipe.h, pipe.h)
+            )
+            pygame.draw.rect(
+                self.display, GREEN, pygame.Rect(bottom_pipe.x, bottom_pipe.y, bottom_pipe.h, bottom_pipe.h)
+            )
+        
+        text = font.render(f"Score: {self.score}", True, WHITE)
+        self.display.blit(text, [0,0])
+        pygame.display.flip()
 
-    pygame.display.update()
+    def _move_bird(self, action):
+        if np.array_equal(action, [1]):
+            self.velocity = -6
+        else:
+            self.velocity -= self.gravity
 
-pygame.quit()
+        x = self.bird.x
+        y = self.bird.y
+        y += self.velocity
+
+        self.bird = Point(x, y)
+
+    def _move_pipes(self):
+        self.bottom_pipes = []
+
+        for pipe in self.pipes:
+            # Check if pipe is off-screen
+            if pipe.x < -self.pipe_width:
+                height = random.randint(self.pipe_gap, self.height - self.pipe_gap)
+                pipe = Point(640, 0, height)
+
+            # Move pipe
+            pipe.x += self.pipe_velocity
+            
+            # Add bottom pipe to list
+            x = pipe.x
+            y = pipe.h + self.pipe_gap
+            h = self.height - y
+            bottom_pipe = Point(x, y, h)
+            self.bottom_pipes.append(bottom_pipe)
