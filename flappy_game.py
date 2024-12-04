@@ -31,18 +31,18 @@ class FlappyGameAI:
     def reset(self):
         # Bird
         self.bird = Point(2 * self.width / 3, self.height / 2, PLAYER_SIZE)
-        self.gravity = 0.2
+        self.gravity = 1
         self.velocity = 0
 
         # Pipes
         self.pipes = []
-        self.pipe_distance = 160
+        self.pipe_distance = 200
         self.pipe_gap = 80
         self.pipe_width = 40
         self.pipe_velocity = -2
-        for pipe in range(3):
+        for num_pipes in range(3):
             height = random.randint(self.pipe_gap, self.height - self.pipe_gap)
-            pipe = Point(500 + pipe * (self.pipe_distance + self.pipe_width), 0, height)
+            pipe = Point(500 + num_pipes * (self.pipe_distance + self.pipe_width), 0, height)
             self.pipes.append(pipe)
 
         self.score = 0
@@ -50,6 +50,7 @@ class FlappyGameAI:
 
     def play_step(self, action):
         self.frame_iteration += 1
+        print(self.frame_iteration)
         # Input
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -73,9 +74,9 @@ class FlappyGameAI:
         reward = 0
         game_over = False
         if self.is_collision():
-            game_over = True
+            game_over = False
             reward = -10
-            return reward, game_over, self.score
+            # return reward, game_over, self.score
         
         # Check if passed through pipe
         for pipe in self.pipes:
@@ -118,10 +119,10 @@ class FlappyGameAI:
         for index, pipe in enumerate(self.pipes):
             bottom_pipe = self.bottom_pipes[index]
             pygame.draw.rect(
-                self.display, GREEN, pygame.Rect(pipe.x, pipe.y, pipe.h, pipe.h)
+                self.display, GREEN, pygame.Rect(pipe.x, pipe.y, self.pipe_width, pipe.h)
             )
             pygame.draw.rect(
-                self.display, GREEN, pygame.Rect(bottom_pipe.x, bottom_pipe.y, bottom_pipe.h, bottom_pipe.h)
+                self.display, GREEN, pygame.Rect(bottom_pipe.x, bottom_pipe.y, self.pipe_width, bottom_pipe.h)
             )
         
         text = font.render(f"Score: {self.score}", True, WHITE)
@@ -132,25 +133,30 @@ class FlappyGameAI:
         if np.array_equal(action, [1]):
             self.velocity = -6
         else:
-            self.velocity -= self.gravity
+            self.velocity += self.gravity
 
         x = self.bird.x
         y = self.bird.y
+        h = self.bird.h
         y += self.velocity
 
-        self.bird = Point(x, y)
+        self.bird = Point(x, y, h)
 
     def _move_pipes(self):
         self.bottom_pipes = []
 
-        for pipe in self.pipes:
+        for index, pipe in enumerate(self.pipes):
             # Check if pipe is off-screen
             if pipe.x < -self.pipe_width:
                 height = random.randint(self.pipe_gap, self.height - self.pipe_gap)
-                pipe = Point(640, 0, height)
+                pipe = Point(680, 0, height)
 
             # Move pipe
-            pipe.x += self.pipe_velocity
+            x = pipe.x + self.pipe_velocity
+            y = pipe.y
+            h = pipe.h
+            pipe = Point(x, y, h)
+            self.pipes[index] = pipe
             
             # Add bottom pipe to list
             x = pipe.x
