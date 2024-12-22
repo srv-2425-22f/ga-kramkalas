@@ -136,6 +136,7 @@ class FlappyBirdAI:
         )
 
         self.movement_info = self.show_welcome_animation()
+        self.reset(self.movement_info)
 
     def show_welcome_animation(self):
         """ Shows welcome screen animation of flappy bird. """
@@ -191,7 +192,7 @@ class FlappyBirdAI:
             FPSCLOCK.tick(FPS)
 
     def reset(self, movement_info):
-        print("Reset")
+        # print("Reset")
         ###########  S E T U P   F O R   G A M E  ###########
         self.score = 0
         self.player_index = 0
@@ -247,24 +248,28 @@ class FlappyBirdAI:
             self.crash_test = self.check_crash({'x': self.player_x, 'y': self.player_y, 'index': self.player_index},
                                     self.upper_pipes, self.lower_pipes)
             # print("crash test:", self.crash_test)
+            reward = 0
+            game_over = False
             if self.crash_test[0]:
-                return {
-                    'y': self.player_y,
-                    'groundCrash': self.crash_test[1],
-                    'base_x': self.base_x,
-                    'upper_pipes': self.upper_pipes,
-                    'lower_pipes': self.lower_pipes,
-                    'score': self.score,
-                    'player_vel_y': self.player_vel_y,
-                    'player_rot': self.player_rot
-                }
+                # return {
+                #     'y': self.player_y,
+                #     'groundCrash': self.crash_test[1],
+                #     'base_x': self.base_x,
+                #     'upper_pipes': self.upper_pipes,
+                #     'lower_pipes': self.lower_pipes,
+                #     'score': self.score,
+                #     'player_vel_y': self.player_vel_y,
+                #     'player_rot': self.player_rot
+                # }
+                return reward, game_over, self.score
 
             # check for score
             self.player_mid_pos = self.player_x + IMAGES['player'][0].get_width() / 2
             for pipe in self.upper_pipes:
                 pipe_mid_pos = pipe['x'] + IMAGES['pipe'][0].get_width() / 2
                 if pipe_mid_pos <= self.player_mid_pos < pipe_mid_pos + 4:
-                    score += 1
+                    self.score += 1
+                    reward = 10
                     SOUNDS['point'].play()
 
             # player_index base_x change
@@ -327,9 +332,11 @@ class FlappyBirdAI:
             pygame.display.update()
             FPSCLOCK.tick(FPS)
 
+            return reward, game_over, self.score
+
     def show_game_over_screen(self, crash_info):
         """crashes the player down ans shows game over image"""
-        print("crash info 1: ", crash_info)
+        # print("crash info 1: ", crash_info)
         self.score = crash_info['score']
         self.player_x = SCREEN_WIDTH * 0.2
         self.player_y = crash_info['y']
@@ -483,7 +490,10 @@ class FlappyBirdAI:
         return mask
 
     def get_state_rgb(self):
-        return np.array(pygame.surfarray.array3d(SCREEN))
+        image = np.array(pygame.surfarray.array3d(SCREEN))
+        image = image.reshape(3, 288, 512)
+        # print("Image shape: ", image.shape)
+        return image
 
     # def get_state_values():
     #     # x, y player
