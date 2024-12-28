@@ -13,6 +13,8 @@ import pygame
 from pygame.locals import *
 import numpy as np
 
+import cv2 ## Pip install opencv-python
+
 ASSETS_DIR = "./adrian/lib/site-packages/flappy_bird_gymnasium/assets"
 
 FPS = 30
@@ -103,11 +105,11 @@ class FlappyBirdAI:
 
         # while True:
         # select random background sprites
-        randBg = random.randint(0, len(BACKGROUNDS_LIST) - 1)
+        randBg = 0 # random.randint(0, len(BACKGROUNDS_LIST) - 1)
         IMAGES['background'] = pygame.image.load(BACKGROUNDS_LIST[randBg]).convert()
 
         # select random player sprites
-        randPlayer = random.randint(0, len(PLAYERS_LIST) - 1)
+        randPlayer = 2 # random.randint(0, len(PLAYERS_LIST) - 1)
         IMAGES['player'] = (
             pygame.image.load(PLAYERS_LIST[randPlayer][0]).convert_alpha(),
             pygame.image.load(PLAYERS_LIST[randPlayer][1]).convert_alpha(),
@@ -115,7 +117,7 @@ class FlappyBirdAI:
         )
 
         # select random pipe sprites
-        pipe_index = random.randint(0, len(PIPES_LIST) - 1)
+        pipe_index = 0 # random.randint(0, len(PIPES_LIST) - 1)
         IMAGES['pipe'] = (
             pygame.transform.flip(
                 pygame.image.load(PIPES_LIST[pipe_index]).convert_alpha(), False, True),
@@ -135,8 +137,11 @@ class FlappyBirdAI:
             self.get_hitmask(IMAGES['player'][2]),
         )
 
-        self.movement_info = self.show_welcome_animation()
-        self.reset(self.movement_info)
+        self.player_index = 0
+        self.player_index_gen = cycle([0, 1, 2, 1])
+        # iterator used to change player_index after every 5th iteration
+        self.loop_iter = 0
+        self.reset()
 
     def show_welcome_animation(self):
         """ Shows welcome screen animation of flappy bird. """
@@ -191,16 +196,21 @@ class FlappyBirdAI:
             pygame.display.update()
             FPSCLOCK.tick(FPS)
 
-    def reset(self, movement_info):
+    def reset(self, #movement_info
+              ):
+        # print(movement_info)
+        # print(movement_info['player_index_gen'])
+        # print(self.player_index_gen)
+        # print(self.loop_iter)
         # print("Reset")
         ###########  S E T U P   F O R   G A M E  ###########
         self.score = 0
         self.player_index = 0
         self.loop_iter = 0
-        self.player_index_gen = movement_info['player_index_gen']
-        self.player_x, self.player_y = int(SCREEN_WIDTH * 0.2), movement_info['player_y']
+        # self.player_index_gen = movement_info['player_index_gen']
+        self.player_x, self.player_y = int(SCREEN_WIDTH * 0.2), 245 # movement_info['player_y']
 
-        self.base_x = movement_info['base_x']
+        self.base_x = -12 # movement_info['base_x']
         self.base_shift = IMAGES['base'].get_width() - IMAGES['background'].get_width()
 
         # get 2 new pipes to add to upper_pipes lower_pipes list
@@ -248,9 +258,11 @@ class FlappyBirdAI:
             self.crash_test = self.check_crash({'x': self.player_x, 'y': self.player_y, 'index': self.player_index},
                                     self.upper_pipes, self.lower_pipes)
             # print("crash test:", self.crash_test)
-            reward = 0
+            reward = 0.5
             game_over = False
             if self.crash_test[0]:
+                reward = -10
+                game_over = True
                 # return {
                 #     'y': self.player_y,
                 #     'groundCrash': self.crash_test[1],
@@ -261,6 +273,7 @@ class FlappyBirdAI:
                 #     'player_vel_y': self.player_vel_y,
                 #     'player_rot': self.player_rot
                 # }
+                # print("Crashed")
                 return reward, game_over, self.score
 
             # check for score
@@ -437,8 +450,8 @@ class FlappyBirdAI:
         player['w'] = IMAGES['player'][0].get_width()
         player['h'] = IMAGES['player'][0].get_height()
 
-        # if player crashes into ground
-        if player['y'] + player['h'] >= BASE_Y - 1:
+        # if player crashes into ground or leaves screen
+        if (player['y'] + player['h'] >= BASE_Y - 1) or (player['y'] <= 0):
             return [True, True]
         else:
             player_rect = pygame.Rect(player['x'], player['y'], player['w'], player['h'])
@@ -491,7 +504,9 @@ class FlappyBirdAI:
 
     def get_state_rgb(self):
         image = np.array(pygame.surfarray.array3d(SCREEN))
-        image = image.reshape(3, 288, 512)
+        image = cv2.resize(image, (72, 128), interpolation=cv2.INTER_LINEAR)
+        image = image.reshape(3, 72, 128)
+        
         # print("Image shape: ", image.shape)
         return image
 
