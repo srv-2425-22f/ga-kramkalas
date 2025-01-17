@@ -78,7 +78,11 @@ class ViT(nn.Module):
         super().__init__()
         self.embeddings_block = PatchEmbedding(embed_dim, patch_size, num_patches, dropout, in_channels)
 
-        encoder_layer = nn.TransformerEncoderLayer(d_model=embed_dim, nhead=num_heads, dropout=dropout, activation=activation, batch_first=True)
+        encoder_layer = nn.TransformerEncoderLayer(d_model=embed_dim, 
+                                                   nhead=num_heads, 
+                                                   dropout=dropout, 
+                                                   activation=activation, 
+                                                   batch_first=True)
         self.encoder_blocks = nn.TransformerEncoder(encoder_layer, num_layers=num_encoders)
 
         self.mlp_head = nn.Sequential(
