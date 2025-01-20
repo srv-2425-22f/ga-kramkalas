@@ -6,6 +6,7 @@ import torch
 from helper import plot_image_live
 from agents import Basic
 import tqdm
+from models import CNN
 
 env = gymnasium.make("VizdoomBasic-v0")
 # observation, info = env.reset()
@@ -13,17 +14,21 @@ env = gymnasium.make("VizdoomBasic-v0")
 # print(image.shape) # (240, 320, 3)
 
 learning_rate = 0.01
-n_episodes = 100_000
+n_episodes = 10
 start_epsilon = 1.0
 epsilon_decay = start_epsilon / (n_episodes / 2)
 end_epsilon = 0.1
+action_space = env.action_space.n
+device = "cuda" if torch.cuda.is_available else "cpu"
+print(device)
 
 agent = Basic(
     env=env,
     learning_rate=learning_rate,
     start_epsilon=start_epsilon,
     epsilon_decay=epsilon_decay,
-    end_epsilon=end_epsilon
+    end_epsilon=end_epsilon,
+    model = CNN(3, 16, action_space, device).to(device)
 )
 
 env = gymnasium.wrappers.RecordEpisodeStatistics(env, buffer_length=n_episodes)
@@ -38,9 +43,12 @@ for episode in tqdm(range(n_episodes)):
         agent.update(obs["screen"], action, reward, terminated, next_obs["screen"])
 
         image = np.array(obs["screen"])
-        plot_image_live(image)
+        # plot_image_live(image)
 
         done = terminated or truncated
+        agent.remember(obs, action, reward, next_obs, done)
         obs = next_obs["screen"]
 
     agent.decay_epsilon()
+
+agent.train_long(agent.memory)
