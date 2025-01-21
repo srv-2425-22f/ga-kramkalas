@@ -20,6 +20,7 @@ epsilon_decay = start_epsilon / (n_episodes / 2)
 end_epsilon = 0.1
 action_space = env.action_space.n
 device = "cuda" if torch.cuda.is_available else "cpu"
+device = "cpu"
 print(device)
 
 agent = Basic(
@@ -32,22 +33,25 @@ agent = Basic(
 )
 
 env = gymnasium.wrappers.RecordEpisodeStatistics(env, buffer_length=n_episodes)
-for episode in tqdm(range(n_episodes)):
+for episode in range(n_episodes):
     obs, info = env.reset()
     done = False
+    # image = np.array(obs["screen"])
+    # plot_image_live(image)
 
     while not done:
+        # obs = np.array(obs["screen"])
         action = agent.get_action(env, obs["screen"])
         next_obs, reward, terminated, truncated, info = env.step(action)
+        # print(next_obs["screen"])
+        # agent.update(obs["screen"], action, reward, terminated, next_obs["screen"])
 
-        agent.update(obs["screen"], action, reward, terminated, next_obs["screen"])
-
-        image = np.array(obs["screen"])
+        # image = np.array(obs["screen"])
         # plot_image_live(image)
 
         done = terminated or truncated
         agent.remember(obs, action, reward, next_obs, done)
-        obs = next_obs["screen"]
+        obs = next_obs
 
     agent.decay_epsilon()
 

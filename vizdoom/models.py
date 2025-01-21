@@ -37,8 +37,10 @@ class CNN(nn.Module):
 
         self.to(device)
     
-        dummy_input = torch.randn(3, 240, 320)
-        flattened_size = self._forward(dummy_input.to(device)).numel()
+        dummy_input = torch.randn(1, 3, 240, 320)
+        dummy_input = self._forward(dummy_input)
+        flattened_size = dummy_input.numel()
+        flattened_size = int(flattened_size/32)
 
         self.classifier = nn.Sequential(
             nn.Flatten(),

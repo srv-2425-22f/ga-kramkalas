@@ -36,15 +36,19 @@ class Basic:
         self.training_error = []
         self.model = model
 
-    def get_action(self, env, obs) -> int:
+    def get_action(self, env, obs: np.ndarray) -> int:
         """
         Returns the best action, according to the agent, with probability (1 - epsilon)
         otherwise a random action with probability epsilon to ensure exploration.
         """
+        # print(obs)
         if np.random.random() < self.epsilon:
             return env.action_space.sample() # Returns a random action from the action_space
         
         else:
+            obs = obs.reshape(3, 240, 320)
+            obs = torch.tensor(obs, dtype=torch.float)
+            # print(obs.shape, obs.dtype)
             return torch.argmax(self.model(obs)).item()
         
     def remember(
