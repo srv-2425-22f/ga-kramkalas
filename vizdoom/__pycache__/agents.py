@@ -61,8 +61,9 @@ class Basic:
     def remember(self, obs, action, reward, next_obs, done):
         self.memory.append((obs, action, reward, next_obs, done))
 
-    def get_Q(self):
-        pass
+    def get_Q(self, reward, observation):
+        target = (reward + self.gamma * torch.max(self.model(observation))) # Bellman equation to calculate the q-value
+        return target
 
     def train_long(self, memory):
         print(memory)
