@@ -48,8 +48,10 @@ class Basic:
         else:
             obs = obs.reshape(3, 240, 320)
             obs = torch.tensor(obs, dtype=torch.float)
-            # print(obs.shape, obs.dtype)
-            return torch.argmax(self.model(obs)).item()
+            print(f"OBS {obs.shape, obs.dtype}")
+            # print(self.model(obs).shape)
+            print(torch.argmax(self.model(obs)).item())
+            return 3
         
     def remember(
             self, 

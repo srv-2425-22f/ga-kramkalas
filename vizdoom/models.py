@@ -7,8 +7,7 @@ class CNN(nn.Module):
         self, 
         in_channels: int, 
         hidden_size: int, 
-        action_space: int,
-        device
+        action_space: float,
     ):
         """
         Initializes a Convolutional Nueral Network model which takes in an image
@@ -34,20 +33,18 @@ class CNN(nn.Module):
                       padding=0),
             nn.ReLU(),
         )
-
-        self.to(device)
     
-        dummy_input = torch.randn(1, 3, 240, 320)
-        dummy_input = self._forward(dummy_input)
-        flattened_size = dummy_input.numel()
-        flattened_size = int(flattened_size/32)
+        # dummy_input = torch.randn(1, 3, 240, 320)
+        # dummy_input = self._forward(dummy_input)
+        # flattened_size = dummy_input.numel()
+        # flattened_size = int(flattened_size)
 
         self.classifier = nn.Sequential(
             nn.Flatten(),
-            nn.Linear(in_features=flattened_size,
-                      out_features=512),
-            nn.Linear(in_features=512,
-                      out_features=action_space)
+            # nn.Linear(in_features=flattened_size,
+            #           out_features=512),
+            # nn.Linear(in_features=512,
+            #           out_features=action_space)
         )
 
     def _forward(self, x):
@@ -56,7 +53,10 @@ class CNN(nn.Module):
     
     def forward(self, x):
         x = self._forward(x)
+        # print(x)
+        print(x.shape)
         x = self.classifier(x)
+        print(x.shape)
         return x
     
 class QTrainer:
