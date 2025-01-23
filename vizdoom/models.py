@@ -11,7 +11,7 @@ class CNN(nn.Module):
         action_space: float,
     ):
         """
-        Initializes a Convolutional Nueral Network model which takes in an image
+        Initializes a Convolutional Neural Network model which takes in an image
 
         Args:
             in_channels: Number of color channels of the image
@@ -60,9 +60,17 @@ class CNN(nn.Module):
 
 
 class QTrainer:
-    def __init__(self, model, lr, gamma):
+    def __init__(self, model, lr):
         self.lr = lr
-        self.gamma = gamma
         self.model = model
         self.optimizer = optim.Adam(model.parameters(), lr=self.lr)
         self.loss_fn = nn.MSELoss()
+
+    def optimize_model(self, pred, target):
+        pred = torch.tensor(pred, dtype=torch.float)
+        # print(pred.type(), target.type())
+        loss = self.loss_fn(pred, target)
+        self.optimizer.zero_grad()
+        loss.backward()
+        self.optimizer.step()
+        print(f"Loss: {loss:.4f} | Prediction: {pred}, Target: {target:.4f}")

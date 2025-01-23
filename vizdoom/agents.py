@@ -2,7 +2,7 @@ import torch
 from torch import nn
 import numpy as np
 from collections import defaultdict, deque
-
+from models import QTrainer
 
 class Basic:
     def __init__(
@@ -36,6 +36,7 @@ class Basic:
         self.end_epsilon = end_epsilon
         self.training_error = []
         self.model = model
+        self.trainer = QTrainer(self.model, self.lr)
 
     def get_action(self, env, obs: np.ndarray) -> int:
         """
@@ -49,25 +50,32 @@ class Basic:
             )  # Returns a random action from the action_space
 
         else:
-            obs = obs.reshape(3, 240, 320)
             obs = torch.tensor(obs, dtype=torch.float)
-            preds = self.model(
-                obs
-            )  # Returns list of probabilities with size of action_space
-            prediction = torch.argmax(preds).item()  # Returns the most probable action
-            print(prediction)
+            preds = self.model(obs)  # Returns list of probabilities with size of action_space
+            prediction = torch.argmax(preds).item()  # Returns the most probable action, represented by the index of the action space
             return prediction
 
     def remember(self, obs, action, reward, next_obs, done):
         self.memory.append((obs, action, reward, next_obs, done))
 
-    def get_Q(self, reward, observation):
-        target = (reward + self.gamma * torch.max(self.model(observation))) # Bellman equation to calculate the q-value
+    def get_q_values(self, next_observation, reward):
+        # pred = torch.argmax(self.model(observation)).float()
+        target = (reward + self.gamma * torch.max(self.model(next_observation))) # Bellman equation to calculate the target q-value
         return target
 
     def train_long(self, memory):
-        print(memory)
+        # print(memory)
+        # Action, state, next_state, reward
         observations, actions, rewards, next_observations, done = zip(*memory)
+
+    def train_short(self, pred, next_observation, reward):
+        # observation = torch.from_numpy(observation).float()
+        next_observation = torch.from_numpy(next_observation).float()
+        # print(observation.type(), observation.shape)s
+        target = self.get_q_values(next_observation, reward)
+        self.trainer.optimize_model(pred, target)
+        # print(f"Pred: {pred} | Target: {target}")
+        
 
     def decay_epsilon(self):
         self.epsilon = max(self.end_epsilon, self.epsilon - self.epsilon_decay)
