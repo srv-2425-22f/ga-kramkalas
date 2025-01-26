@@ -13,6 +13,7 @@ class Basic:
         epsilon_decay: float,
         end_epsilon: float,
         model: nn.Module,
+        target_model: nn.Module,
         gamma: float = 0.95,
     ):
         """
@@ -36,6 +37,7 @@ class Basic:
         self.end_epsilon = end_epsilon
         self.training_error = []
         self.model = model
+        self.target_model = target_model
         self.trainer = QTrainer(self.model, self.lr)
 
     def get_action(self, env, obs: np.ndarray) -> int:
@@ -58,10 +60,14 @@ class Basic:
     def remember(self, obs, action, reward, next_obs, done):
         self.memory.append((obs, action, reward, next_obs, done))
 
-    def get_q_values(self, next_observation, reward):
-        # pred = torch.argmax(self.model(observation)).float()
-        target = (reward + self.gamma * torch.max(self.model(next_observation))) # Bellman equation to calculate the target q-value
-        return target
+    # def get_q_values(self, next_observation, reward):
+    #     # pred = torch.argmax(self.model(observation)).float()
+    #     target = (reward + self.gamma * torch.max(self.model(next_observation))) # Bellman equation to calculate the target q-value
+    #     return target
+
+    def get_q_values(self, observation, model: nn.Module):
+        q_value = model(observation)
+        return q_value
 
     def train_long(self, memory):
         # print(memory)
@@ -75,6 +81,16 @@ class Basic:
         target = self.get_q_values(next_observation, reward)
         self.trainer.optimize_model(pred, target)
         # print(f"Pred: {pred} | Target: {target}")
+
+    def train(self, observation, action, reward, next_observation):
+        q_values = self.get_q_values(self.model(observation))
+        q_value = q_values[action]
+
+        target_q_values = self.get_q_values(self.target_model(next_observation))
+        target_q_value = torch.max(target_q_values)
+        target_q_value += reward
+
+        self.trainer.optimize_model(q_value, target_q_value)
         
 
     def decay_epsilon(self):
