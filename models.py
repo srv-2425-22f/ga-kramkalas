@@ -58,7 +58,6 @@ class CNN(nn.Module):
         x = self.classifier(x)
         return x
 
-
 class QTrainer:
     def __init__(self, model, lr):
         self.lr = lr
@@ -67,10 +66,11 @@ class QTrainer:
         self.loss_fn = nn.MSELoss()
 
     def optimize_model(self, pred, target):
-        pred = torch.tensor(pred, dtype=torch.float)
+        # pred = torch.tensor(pred, dtype=torch.float)
+        # target = torch.tensor(target, dtype=torch.float)
         # print(pred.type(), target.type())
         loss = self.loss_fn(pred, target)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        print(f"Loss: {loss:.4f} | Prediction: {pred}, Target: {target:.4f}")
+        print(f"Loss: {loss:.4f} | Prediction: {pred:.4f}, Target: {target:.4f}")

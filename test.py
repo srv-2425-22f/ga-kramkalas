@@ -15,8 +15,8 @@ env = gymnasium.make("VizdoomBasic-v0")
 # image = np.array(observation["screen"])
 # print(image.shape) # (240, 320, 3)
 
-learning_rate = 0.05
-n_episodes = 20
+learning_rate = 0.01
+n_episodes = 200
 start_epsilon = 1.0
 epsilon_decay = start_epsilon / (n_episodes / 2)
 end_epsilon = 0.1
@@ -46,19 +46,24 @@ for episode in range(n_episodes):
     while not done:
         # obs = np.array(obs["screen"])
         action = agent.get_action(env, obs["screen"])
-        next_obs, reward, terminated, truncated, info = env.step(action)
+        for _ in range(2):
+            next_obs, reward, terminated, truncated, info = env.step(action)
         next_obs["screen"] = next_obs["screen"].reshape(3,240,320)
         # print(next_obs["screen"])
         # agent.update(obs["screen"], action, reward, terminated, next_obs["screen"])
 
         image = np.array(obs["screen"]).reshape(240, 320, 3)
-        plot_image_live(image)
+        plot_image_live(image, episode)
+
+        agent.train(obs["screen"], action, reward, next_obs["screen"])
+        agent.remember(obs["screen"], action, reward, next_obs["screen"])
+        
+        obs = next_obs
 
         done = terminated or truncated
 
-        agent.train_short(action, next_obs["screen"], reward)
-        agent.remember(obs["screen"], action, reward, next_obs["screen"], done)
-        obs = next_obs
+    if episode % 10 == 0:
+        agent.update_target_model()
 
     agent.decay_epsilon()
 

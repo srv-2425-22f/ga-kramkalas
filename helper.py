@@ -1,7 +1,17 @@
-import torch
 import matplotlib.pyplot as plt
+from IPython import display
+import torch
 
-# plt.ion
+plt.ion()
+
+def plot_image_live(image, episode):
+    display.clear_output(wait=True)
+    display.display(plt.gcf())
+    plt.clf()
+    plt.title(f'Episode: {episode}')
+    plt.imshow(image)
+    plt.show(block=False)
+    plt.pause(.1)
 
 def accuracy_fn(y_true, y_pred):
     """Calculates accuracy between truth labels and predictions.
