@@ -3,20 +3,20 @@ from vizdoom import gymnasium_wrapper
 import numpy as np
 import matplotlib.pyplot as plt
 import torch
-from helper import plot_image_live
+from helper import plot_image_live, plot_loss_live
 from agents import Basic
 import tqdm
 from models import CNN
 
-# torch.manual_seed(42)
-# np.random.seed(42)
+torch.manual_seed(42)
+np.random.seed(42)
 env = gymnasium.make("VizdoomBasic-v0")
 # observation, info = env.reset()
 # image = np.array(observation["screen"])
 # print(image.shape) # (240, 320, 3)
 
-learning_rate = 0.01
-n_episodes = 200
+learning_rate = 0.02
+n_episodes = 100
 start_epsilon = 1.0
 epsilon_decay = start_epsilon / (n_episodes / 2)
 end_epsilon = 0.1
@@ -36,12 +36,13 @@ agent = Basic(
 )
 
 env = gymnasium.wrappers.RecordEpisodeStatistics(env, buffer_length=n_episodes)
+
+loss = []
+
 for episode in range(n_episodes):
     obs, info = env.reset()
     obs["screen"] = obs["screen"].reshape(3,240,320)
-    done = False
-    # image = np.array(obs["screen"])
-    # plot_image_live(image)
+    done = False     
 
     while not done:
         # obs = np.array(obs["screen"])
@@ -62,9 +63,14 @@ for episode in range(n_episodes):
 
         done = terminated or truncated
 
+    agent.train_long(agent.memory, 32)
+    # loss.append(agent.loss)
+
     if episode % 10 == 0:
         agent.update_target_model()
 
     agent.decay_epsilon()
+  
+    # plot_loss_live(loss)
 
 # agent.train_long(agent.memory)

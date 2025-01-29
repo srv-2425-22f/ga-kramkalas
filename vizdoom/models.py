@@ -73,4 +73,5 @@ class QTrainer:
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        print(f"Loss: {loss:.4f} | Prediction: {pred:.4f}, Target: {target:.4f}")
+        print(f"\nLoss: {loss:.4f} | Prediction: {pred:.4f}, Target: {target:.4f}")
+        return loss.detach().numpy()

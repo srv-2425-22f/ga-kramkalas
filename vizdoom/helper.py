@@ -13,6 +13,19 @@ def plot_image_live(image, episode):
     plt.show(block=False)
     plt.pause(.1)
 
+def plot_loss_live(loss): 
+    display.clear_output(wait=True)
+    display.display(plt.gcf())
+    plt.clf()
+    plt.title('Training...')
+    plt.xlabel('Number of episodes')
+    plt.ylabel('Loss')
+    plt.plot(loss)
+    plt.ylim(ymin=0)
+    plt.text(len(loss)-1, loss[-1], str(loss[-1]))
+    plt.show(block=False)
+    plt.pause(.1)
+
 def accuracy_fn(y_true, y_pred):
     """Calculates accuracy between truth labels and predictions.
 
@@ -27,11 +40,10 @@ def accuracy_fn(y_true, y_pred):
     acc = (correct / len(y_pred)) * 100
     return acc
 
-def plot(train_loss, test_loss, train_acc, test_acc, train_time):
+def plot(reward, episodes):
     plt.figure(figsize=(10, 5))  # Create a new figure
-    plt.plot(train_loss, label="Train Loss", color="blue")
-    plt.plot(test_loss, label="Test Loss", color="orange")
-    plt.xlabel("Number of Epochs")
+    plt.plot(train_loss, label="Loss", color="blue")
+    plt.xlabel("Number of Episodes")
     plt.ylabel("Loss")
     plt.legend(loc="best")
     plt.title(f"Loss Over Epochs | Time to train: {train_time:.2f} s")

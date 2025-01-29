@@ -39,6 +39,7 @@ class Basic:
         self.model = model
         self.target_model = self.model
         self.trainer = QTrainer(self.model, self.lr)
+        self.loss = 0
 
     def get_action(self, env, obs: np.ndarray) -> int:
         """
@@ -47,11 +48,13 @@ class Basic:
         """
         # print(obs)
         if np.random.random() < self.epsilon:
+            print("Random action")
             return (
                 env.action_space.sample()
             )  # Returns a random action from the action_space
 
         else:
+            print("Predicted action")
             obs = torch.tensor(obs, dtype=torch.float)
             preds = self.model(obs)  # Returns list of probabilities with size of action_space
             prediction = torch.argmax(preds).item()  # Returns the most probable action, represented by the index of the action space
@@ -70,13 +73,23 @@ class Basic:
         return q_value
 
     def train_long(self, memory: np.ndarray, batch_size):
+        print("Train long!")
+
         if len(memory) > batch_size:
             random_samples = random.sample(memory, batch_size)
         else:
-            random_samples = memory
-        
-        for sample, (observation, action, reward, next_observation) in random_samples:
-            observation, action, reward, next_observation = zip(*sample)
+            random_samples = memory           
+
+        for observation, action, reward, next_observation in random_samples:
+            # sample = [sample]
+            # print(f"sample: {type(sample)}")
+            # observation, action, reward, next_observation = zip(*sample)
+
+            observation = np.array(observation)
+            next_observation = np.array(next_observation)
+            # print(f"observation: {type(observation)}\naction: {type(action)}\nreward: {type(reward)}\nnext_observation: {type(next_observation)}\n")
+
+            self.train(observation, action, reward, next_observation)
 
     # def train_short(self, pred, next_observation, reward):
     #     # observation = torch.from_numpy(observation).float()
@@ -87,6 +100,7 @@ class Basic:
     #     # print(f"Pred: {pred} | Target: {target}")
 
     def train(self, observation, action, reward, next_observation):
+        # print("Train!")
         observation = torch.tensor(observation, dtype=torch.float)
         next_observation = torch.tensor(next_observation, dtype=torch.float)
 
@@ -97,7 +111,7 @@ class Basic:
         target_q_value = self.gamma * torch.max(target_q_values)
         target_q_value += reward
 
-        self.trainer.optimize_model(q_value, target_q_value)
+        self.loss = self.trainer.optimize_model(q_value, target_q_value)
 
     def update_target_model(self):
         state_dict = self.model.state_dict()
