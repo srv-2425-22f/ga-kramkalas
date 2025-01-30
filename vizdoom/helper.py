@@ -11,7 +11,7 @@ def plot_image_live(image, episode):
     plt.title(f'Episode: {episode}')
     plt.imshow(image)
     plt.show(block=False)
-    plt.pause(.1)
+    plt.pause(.05)
 
 def plot_loss_live(loss): 
     display.clear_output(wait=True)
@@ -41,19 +41,13 @@ def accuracy_fn(y_true, y_pred):
     return acc
 
 def plot(reward, episodes):
+    display.clear_output(wait=True)
+    display.display(plt.gcf())
+    plt.clf()
     plt.figure(figsize=(10, 5))  # Create a new figure
-    plt.plot(train_loss, label="Loss", color="blue")
+    plt.plot(reward, label="Loss", color="blue")
     plt.xlabel("Number of Episodes")
     plt.ylabel("Loss")
     plt.legend(loc="best")
-    plt.title(f"Loss Over Epochs | Time to train: {train_time:.2f} s")
-
-    # Plot Accuracy
-    plt.figure(figsize=(10, 5))  # Create another figure
-    plt.plot(train_acc, label="Train Accuracy", color="blue", linestyle="--")
-    plt.plot(test_acc, label="Test Accuracy", color="orange", linestyle="--")
-    plt.xlabel(f"Number of Epochs")
-    plt.ylabel("Accuracy (%)")
-    plt.legend(loc="best")
-    plt.title(f"Accuracy Over Epochs | Time to train: {train_time:.2f} s")
-    plt.show()
+    plt.title(f"Loss Over Epochs | Episodes: {episodes}")
+    plt.show(block=True)

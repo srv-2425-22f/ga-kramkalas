@@ -45,8 +45,8 @@ class CNN(nn.Module):
 
         self.classifier = nn.Sequential(
             nn.Flatten(start_dim=0, end_dim=-1),
-            nn.Linear(in_features=flattened_size, out_features=512),
-            nn.Linear(in_features=512, out_features=action_space),
+            nn.Linear(in_features=flattened_size, out_features=1024),
+            nn.Linear(in_features=1024, out_features=action_space),
         )
 
     def _forward(self, x):
@@ -73,5 +73,5 @@ class QTrainer:
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        print(f"\nLoss: {loss:.4f} | Prediction: {pred:.4f}, Target: {target:.4f}")
-        return loss.detach().numpy()
+        # print(f"Loss: {loss:.4f} | Prediction: {pred:.4f}, Target: {target:.4f}")
+        return loss.cpu().detach().numpy()

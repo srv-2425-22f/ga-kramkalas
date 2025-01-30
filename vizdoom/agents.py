@@ -14,6 +14,7 @@ class Basic:
         epsilon_decay: float,
         end_epsilon: float,
         model: nn.Module,
+        device: str,
         gamma: float = 0.95,
     ):
         """
@@ -36,10 +37,11 @@ class Basic:
         self.epsilon_decay = epsilon_decay
         self.end_epsilon = end_epsilon
         self.training_error = []
-        self.model = model
+        self.model = model.to(device)
         self.target_model = self.model
         self.trainer = QTrainer(self.model, self.lr)
         self.loss = 0
+        self.device = device
 
     def get_action(self, env, obs: np.ndarray) -> int:
         """
@@ -48,14 +50,14 @@ class Basic:
         """
         # print(obs)
         if np.random.random() < self.epsilon:
-            print("Random action")
+            # print("\nRandom action")
             return (
                 env.action_space.sample()
             )  # Returns a random action from the action_space
 
         else:
-            print("Predicted action")
-            obs = torch.tensor(obs, dtype=torch.float)
+            # print("\nPredicted action")
+            obs = torch.tensor(obs, dtype=torch.float).to(self.device)
             preds = self.model(obs)  # Returns list of probabilities with size of action_space
             prediction = torch.argmax(preds).item()  # Returns the most probable action, represented by the index of the action space
             return prediction
@@ -73,7 +75,7 @@ class Basic:
         return q_value
 
     def train_long(self, memory: np.ndarray, batch_size):
-        print("Train long!")
+        # print("Train long!")
 
         if len(memory) > batch_size:
             random_samples = random.sample(memory, batch_size)
@@ -101,8 +103,8 @@ class Basic:
 
     def train(self, observation, action, reward, next_observation):
         # print("Train!")
-        observation = torch.tensor(observation, dtype=torch.float)
-        next_observation = torch.tensor(next_observation, dtype=torch.float)
+        observation = torch.tensor(observation, dtype=torch.float).to(self.device)
+        next_observation = torch.tensor(next_observation, dtype=torch.float).to(self.device)
 
         q_values = self.get_q_values(observation, self.model)
         q_value = q_values[action]
