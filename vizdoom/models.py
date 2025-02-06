@@ -37,7 +37,6 @@ class CNN(nn.Module):
             ),
             nn.ReLU(),
         )
-
         dummy_input = torch.randn(3, 240, 320)
         dummy_input = self._forward(dummy_input)
         flattened_size = dummy_input.numel()
@@ -45,8 +44,9 @@ class CNN(nn.Module):
 
         self.classifier = nn.Sequential(
             nn.Flatten(start_dim=0, end_dim=-1),
-            nn.Linear(in_features=flattened_size, out_features=1024),
-            nn.Linear(in_features=1024, out_features=action_space),
+            nn.Linear(in_features=flattened_size, out_features=action_space),
+            # nn.ReLU(),
+            # nn.Linear(in_features=1024, out_features=action_space),
         )
 
     def _forward(self, x):

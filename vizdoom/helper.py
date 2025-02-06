@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 from IPython import display
 import torch
+import numpy as np
 
 plt.ion()
 
@@ -20,9 +21,11 @@ def plot_loss_live(loss):
     plt.title('Training...')
     plt.xlabel('Number of episodes')
     plt.ylabel('Loss')
+    
     plt.plot(loss)
-    plt.ylim(ymin=0)
     plt.text(len(loss)-1, loss[-1], str(loss[-1]))
+    
+
     plt.show(block=False)
     plt.pause(.1)
 
@@ -45,7 +48,10 @@ def plot(reward, episodes):
     display.display(plt.gcf())
     plt.clf()
     plt.figure(figsize=(10, 5))  # Create a new figure
-    plt.plot(reward, label="Loss", color="blue")
+    plt.ylim(top=100)
+    # plt.ylim(bottom=0)
+    # plt.yscale("log")
+    plt.plot(reward, label="Loss", color="blue")    
     plt.xlabel("Number of Episodes")
     plt.ylabel("Loss")
     plt.legend(loc="best")
