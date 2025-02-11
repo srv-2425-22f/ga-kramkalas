@@ -30,7 +30,9 @@ class Basic:
             gamma: The discount factor for computing the Q-value
         """
 
+        self.q_values = defaultdict(lambda: np.zeros(env.action_space.n))
         self.memory = deque(maxlen=100_000)
+        self.memory_episode = deque()
         self.lr = learning_rate
         self.gamma = gamma
         self.epsilon = start_epsilon
@@ -59,12 +61,11 @@ class Basic:
             # print("\nPredicted action")
             obs = torch.tensor(obs, dtype=torch.float).to(self.device)
             preds = self.model(obs)  # Returns list of probabilities with size of action_space
-            preds = torch.softmax(preds, dim=0)
             prediction = torch.argmax(preds).item()  # Returns the most probable action, represented by the index of the action space
             return prediction
 
-    def remember(self, obs, action, reward, next_obs, done):
-        self.memory.append((obs, action, reward, next_obs, done))
+    def remember(self, obs, action, reward, next_obs, memory: deque):
+        memory.append((obs, action, reward, next_obs))
 
     # def get_q_values(self, next_observation, reward):
     #     # pred = torch.argmax(self.model(observation)).float()
@@ -73,54 +74,53 @@ class Basic:
 
     def get_q_values(self, observation, model: nn.Module):
         q_value = model(observation)
-        return q_value
+        return q_value.squeeze()
 
     def train_long(self, memory: np.ndarray, batch_size):
-        # print("Train long!")
-
         if len(memory) > batch_size:
             random_samples = random.sample(memory, batch_size)
         else:
-            random_samples = list(memory)
+            random_samples = memory           
 
-        for observation, action, reward, next_observation, done in random_samples:
-            # sample = [sample]
-            # print(f"sample: {type(sample)}")
-            # observation, action, reward, next_observation = zip(*sample)
-
+        for observation, action, reward, next_observation in random_samples:
             observation = np.array(observation)
             next_observation = np.array(next_observation)
-            # print(f"observation: {type(observation)}\naction: {type(action)}\nreward: {type(reward)}\nnext_observation: {type(next_observation)}\n")
 
-            self.train(observation, action, reward, next_observation, done)
+            self.train(observation, action, reward, next_observation)
 
-    # def train_short(self, pred, next_observation, reward):
-    #     # observation = torch.from_numpy(observation).float()
-    #     next_observation = torch.from_numpy(next_observation).float()
-    #     # print(observation.type(), observation.shape)s
-    #     target = self.get_q_values(next_observation, reward)
-    #     self.trainer.optimize_model(pred, target)
-    #     # print(f"Pred: {pred} | Target: {target}")
-
-    def train(self, observation, action, reward, next_observation, done):
+    def train(self, observation, action, reward, next_observation):
         # print("Train!")
         observation = torch.tensor(observation, dtype=torch.float).to(self.device)
         next_observation = torch.tensor(next_observation, dtype=torch.float).to(self.device)
 
+        if len(observation.shape) == 3:
+            observation = observation.unsqueeze(0)
+        if len(next_observation.shape) == 3:
+            next_observation = next_observation.unsqueeze(0)
+
         q_values = self.get_q_values(observation, self.model)
+        # print("Shape: ", q_values.shape)
+        # print("q_value:", q_values)
         q_value = q_values[action]
 
         target_q_values = self.get_q_values(next_observation, self.target_model)
-
-        target_q_value = torch.tensor(reward, dtype=torch.float).to(self.device)
-        if not done:
-            target_q_value += self.gamma * torch.max(target_q_values)
+        target_q_value = self.gamma * torch.max(target_q_values)
+        target_q_value += reward
 
         self.loss = self.trainer.optimize_model(q_value, target_q_value)
+
+    def train_episode(self):
+        random_samples = list(self.memory_episode)
+
+        for observation, action, reward, next_observation in random_samples:
+            observation = np.array(observation)
+            next_observation = np.array(next_observation)
+
+            self.train(observation, action, reward, next_observation)
 
     def update_target_model(self):
         state_dict = self.model.state_dict()
         self.target_model.load_state_dict(state_dict)       
 
     def decay_epsilon(self):
-        self.epsilon = max(self.end_epsilon, self.epsilon * self.epsilon_decay)
+        self.epsilon = max(self.end_epsilon, self.epsilon - self.epsilon_decay)
