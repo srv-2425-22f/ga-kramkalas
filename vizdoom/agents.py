@@ -31,6 +31,7 @@ class Basic:
         """
 
         self.memory = deque(maxlen=100_000)
+        self.episode_memory = deque()
         self.lr = learning_rate
         self.gamma = gamma
         self.epsilon = start_epsilon
@@ -63,8 +64,8 @@ class Basic:
             prediction = torch.argmax(preds).item()  # Returns the most probable action, represented by the index of the action space
             return prediction
 
-    def remember(self, obs, action, reward, next_obs, done):
-        self.memory.append((obs, action, reward, next_obs, done))
+    def remember(self, obs, action, reward, next_obs, done, memory: deque):
+        memory.append((obs, action, reward, next_obs, done))
 
     # def get_q_values(self, next_observation, reward):
     #     # pred = torch.argmax(self.model(observation)).float()
@@ -75,7 +76,7 @@ class Basic:
         q_value = model(observation)
         return q_value
 
-    def train_long(self, memory: np.ndarray, batch_size):
+    def train_long(self, memory: deque, batch_size):
         # print("Train long!")
 
         if len(memory) > batch_size:
@@ -93,6 +94,21 @@ class Basic:
             # print(f"observation: {type(observation)}\naction: {type(action)}\nreward: {type(reward)}\nnext_observation: {type(next_observation)}\n")
 
             self.train(observation, action, reward, next_observation, done)
+
+    def train_episode(self):
+        sample = list(self.episode_memory)
+        for observation, action, reward, next_observation, done in sample:
+            # sample = [sample]
+            # print(f"sample: {type(sample)}")
+            # observation, action, reward, next_observation = zip(*sample)
+
+            observation = np.array(observation)
+            next_observation = np.array(next_observation)
+            # print(f"observation: {type(observation)}\naction: {type(action)}\nreward: {type(reward)}\nnext_observation: {type(next_observation)}\n")
+
+            self.train(observation, action, reward, next_observation, done)
+        self.episode_memory.clear()
+
 
     # def train_short(self, pred, next_observation, reward):
     #     # observation = torch.from_numpy(observation).float()

@@ -1,7 +1,7 @@
 import torch
 from torch import nn
 import torch.optim as optim
-
+import os
 
 class CNN(nn.Module):
     def __init__(
@@ -57,6 +57,14 @@ class CNN(nn.Module):
         x = self._forward(x)
         x = self.classifier(x)
         return x
+    
+    def save(self, file_name="model.pth"):
+        path = "./saved_models"
+        if not os.path.exists(path):
+            os.makedirs(path)
+        file_name = os.path.join(path, file_name)
+        torch.save(self.state_dict(), file_name)
+
 
 class QTrainer:
     def __init__(self, model, lr):

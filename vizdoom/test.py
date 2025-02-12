@@ -13,17 +13,19 @@ torch.manual_seed(42)
 np.random.seed(42)
 random.seed(42)
 
-env = gymnasium.make("VizdoomBasic-v0")
+env = gymnasium.make("VizdoomDefendCenter-v0")
 # observation, info = env.reset()
 # image = np.array(observation["screen"])
 # print(image.shape) # (240, 320, 3)
 
-learning_rate = 0.01
-n_episodes = 200
+learning_rate = 0.001
+n_episodes = 20000
+when_show = 20000 
 start_epsilon = 1.0
-BATCH_SIZE = 512
-epsilon_decay = 0.95
+BATCH_SIZE = 128
+epsilon_decay = 0.9975
 end_epsilon = 0.1
+update_frequency = 400
 action_space = int(env.action_space.n)
 device = "cuda" if torch.cuda.is_available else "cpu"
 print(device)
@@ -45,7 +47,6 @@ loss = []
 
 
 for episode in range(n_episodes):
-    print(f"Epsiode: {episode}")
     obs, info = env.reset()
     obs["screen"] = obs["screen"].reshape(3,240,320)
     done = False     
@@ -62,23 +63,31 @@ for episode in range(n_episodes):
         # agent.update(obs["screen"], action, reward, terminated, next_obs["screen"]       
         done = terminated or truncated
 
-        agent.train(obs["screen"], action, reward, next_obs["screen"], done)
-        agent.remember(obs["screen"], action, reward, next_obs["screen"], done)
+        # agent.train(obs["screen"], action, reward, next_obs["screen"], done)
+        agent.remember(obs["screen"], action, reward, next_obs["screen"], done, agent.memory)
+        agent.remember(obs["screen"], action, reward, next_obs["screen"], done, agent.episode_memory)
 
         image = np.array(obs["screen"]).reshape(240, 320, 3)
-        if episode > 150:
+        if episode > when_show:
             plot_image_live(image, episode)
         
         obs = next_obs
+    agent.train_episode()
 
-
-    agent.train_long(agent.memory, BATCH_SIZE)
+    if loss and agent.loss < np.min(loss):
+        # if(agent.loss < np.min(loss)):
+        # print(np.min(loss))
+        torch.save(agent.model.state_dict(), "saved_models/best.pth")
     loss.append(agent.loss)
 
-    if episode % 20 == 0:
-        print("Update target model")
+    if episode % update_frequency == 0:
+        print(f"Epsiode: {episode}")
+        agent.train_long(agent.memory, BATCH_SIZE)
+        # print("Update target model")
         agent.update_target_model()
+        torch.save(agent.model.state_dict(), "saved_models/latest.pth")
 
-    agent.decay_epsilon()
+    if episode > 200:
+        agent.decay_epsilon()
 
 plot(loss, n_episodes)

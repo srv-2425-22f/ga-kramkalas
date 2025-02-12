@@ -12,7 +12,7 @@ def plot_image_live(image, episode):
     plt.title(f'Episode: {episode}')
     plt.imshow(image)
     plt.show(block=False)
-    plt.pause(.05)
+    plt.pause(.01)
 
 def plot_loss_live(loss): 
     display.clear_output(wait=True)
