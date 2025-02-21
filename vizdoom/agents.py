@@ -16,7 +16,7 @@ class Basic:
         model: nn.Module,
         target_model: nn.Module,
         device: str,
-        gamma: float = 0.95,
+        gamma: float = 0.99,
     ):
         """
         Initialize a Reinforcement Learning agent with an empty dictionary of
@@ -30,7 +30,7 @@ class Basic:
             gamma: The discount factor for computing the Q-value
         """
 
-        self.memory = deque(maxlen=100_000)
+        self.memory = deque(maxlen=1_000_000)
         self.episode_memory = deque()
         self.lr = learning_rate
         self.gamma = gamma
@@ -52,8 +52,9 @@ class Basic:
         # print(obs)
         if np.random.random() < self.epsilon:
             # print("\nRandom action")
+            # print(env.action_space["binary"].sample().dtype)
             return (
-                env.action_space.sample()
+                env.action_space.sample() # FÖR DEATHMATCH MÅSTE MAN SKRIVA "binary" HÄR
             )  # Returns a random action from the action_space
 
         else:
@@ -125,6 +126,7 @@ class Basic:
 
         q_values = self.get_q_values(observation, self.model)
         q_value = q_values[action]
+        # print(q_value)
 
         target_q_values = self.get_q_values(next_observation, self.target_model)
 
