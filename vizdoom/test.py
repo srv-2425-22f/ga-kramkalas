@@ -22,13 +22,13 @@ env = gymnasium.make("VizdoomDeathmatch-v0")
 learning_rate = 0.001
 n_episodes = 2000
 when_show = 1950
-start_epsilon = 1.0
+start_epsilon = 1
 BATCH_SIZE = 32
 epsilon_decay = 0.9975
 end_epsilon = 0.1
 update_frequency = 100
-print(f"\n\n HÄR ÄR ACTION SPACE: {env.action_space}\n\n")
-action_space = int(env.action_space.n)
+
+action_space = int(env.action_space["binary"].n)
 
 print(action_space)
 # device = "cuda" if torch.cuda.is_available else "cpu"
@@ -50,24 +50,20 @@ env = gymnasium.wrappers.RecordEpisodeStatistics(env, buffer_length=n_episodes)
 
 loss = []
 
-
 for episode in range(n_episodes):
     obs, info = env.reset()
     obs["screen"] = obs["screen"].reshape(3, 240, 320)
     done = False
     num_steps = 0
     while not done:
-        # obs = np.array(obs["screen"])
         action = agent.get_action(env, obs["screen"])
-        # print(action)
         try: 
             next_obs, reward, terminated, truncated, info = env.step(action)
         except:
             env.reset()
             break
         next_obs["screen"] = next_obs["screen"].reshape(3, 240, 320)
-        # print(next_obs["screen"])
-        # agent.update(obs["screen"], action, reward, terminated, next_obs["screen"]
+      
         done = terminated or truncated
 
         if num_steps % 4 == 0:
@@ -94,15 +90,12 @@ for episode in range(n_episodes):
     agent.train_episode()
 
     if loss and agent.loss < np.min(loss):
-        # if(agent.loss < np.min(loss)):
-        # print(np.min(loss))
         torch.save(agent.model.state_dict(), "saved_models/best.pth")
     loss.append(agent.loss)
 
     print(f"Epsiode: {episode}")
     if episode % update_frequency == 0:
         agent.train_long(agent.memory, BATCH_SIZE)
-        # print("Update target model")
         agent.update_target_model()
         torch.save(agent.model.state_dict(), "saved_models/latest.pth")
 

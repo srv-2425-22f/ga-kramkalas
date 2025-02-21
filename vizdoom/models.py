@@ -42,21 +42,27 @@ class CNN(nn.Module):
         flattened_size = dummy_input.numel()
         flattened_size = int(flattened_size)
 
-        self.classifier = nn.Sequential(
+        self.discrete_classifier = nn.Sequential(
             nn.Flatten(start_dim=0, end_dim=-1),
             nn.Linear(in_features=flattened_size, out_features=action_space),
             # nn.ReLU(),
             # nn.Linear(in_features=1024, out_features=action_space),
         )
+        self.continuous_classifier = nn.Sequential(
+            nn.Flatten(start_dim=0, end_dim=-1),
+            nn.Linear(in_features=flattened_size, out_features=3),
+            nn.Tanh()
+        )
 
-    def _forward(self, x):
+    def _forward(self,x):
         x = self.conv(x)
         return x
 
     def forward(self, x):
         x = self._forward(x)
-        x = self.classifier(x)
-        return x
+        discrete_values = self.discrete_classifier(x)
+        continuous_values = self.continuous_classifier(x)
+        return discrete_values, continuous_values
     
     def save(self, file_name="model.pth"):
         path = "./saved_models"
@@ -71,15 +77,15 @@ class QTrainer:
         self.lr = lr
         self.model = model
         self.optimizer = optim.Adam(model.parameters(), lr=self.lr)
-        self.loss_fn = nn.MSELoss()
+        self.discrete_loss_fn = nn.MSELoss()
+        self.continuous_loss_fn = nn.L1Loss()
 
-    def optimize_model(self, pred, target):
-        # pred = torch.tensor(pred, dtype=torch.float)
-        # target = torch.tensor(target, dtype=torch.float)
-        # print(pred.type(), target.type())
-        loss = self.loss_fn(pred, target)
+    def optimize_model(self, discrete_pred, continuous_pred, discrete_target, continuous_target):
+        discrete_loss = self.discrete_loss_fn(discrete_pred, discrete_target)
+        continuous_loss = self.continuous_loss_fn(continuous_pred, continuous_target)
+
+        loss = discrete_loss + continuous_loss
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        # print(f"Loss: {loss:.4f} | Prediction: {pred:.4f}, Target: {target:.4f}")
         return loss.cpu().detach().numpy()
