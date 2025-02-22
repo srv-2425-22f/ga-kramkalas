@@ -5,6 +5,7 @@ from collections import defaultdict, deque
 from models import QTrainer
 import random
 
+
 class Basic:
     def __init__(
         self,
@@ -30,7 +31,7 @@ class Basic:
             gamma: The discount factor for computing the Q-value
         """
 
-        self.memory = deque(maxlen=1_000_000)
+        self.memory = deque(maxlen=100_000)
         self.episode_memory = deque()
         self.lr = learning_rate
         self.gamma = gamma
@@ -51,19 +52,23 @@ class Basic:
         """
         if np.random.random() < self.epsilon:
             return {
-            "binary": env.action_space["binary"].sample(),
-            "continuous": env.action_space["continuous"].sample()
-        }
+                "binary": env.action_space["binary"].sample(),
+                "continuous": env.action_space["continuous"].sample(),
+            }
 
         else:
             obs = torch.tensor(obs, dtype=torch.float).to(self.device)
-            discrete_preds, continuous_preds = self.model(obs)  # Returns list of probabilities with size of action_space
-            discrete_pred = torch.argmax(torch.softmax(discrete_preds, dim=0)).item() # Returns the most probable action, represented by the index of the action space
+            discrete_preds, continuous_preds = self.model(
+                obs
+            )  # Returns list of probabilities with size of action_space
+            discrete_pred = torch.argmax(
+                torch.softmax(discrete_preds, dim=0)
+            ).item()  # Returns the most probable action, represented by the index of the action space
             continuous_preds = continuous_preds.detach().cpu().numpy()
             return {
-            "binary": discrete_pred,
-            "continuous": continuous_preds  # Adjust if needed
-        }
+                "binary": discrete_pred,
+                "continuous": continuous_preds,  # Adjust if needed
+            }
             # return prediction
 
     def remember(self, obs, action, reward, next_obs, done, memory: deque):
@@ -106,7 +111,6 @@ class Basic:
             self.train(observation, action, reward, next_observation, done)
         self.episode_memory.clear()
 
-
     # def train_short(self, pred, next_observation, reward):
     #     # observation = torch.from_numpy(observation).float()
     #     next_observation = torch.from_numpy(next_observation).float()
@@ -117,23 +121,34 @@ class Basic:
 
     def train(self, observation, action, reward, next_observation, done):
         observation = torch.tensor(observation, dtype=torch.float).to(self.device)
-        next_observation = torch.tensor(next_observation, dtype=torch.float).to(self.device)
+        next_observation = torch.tensor(next_observation, dtype=torch.float).to(
+            self.device
+        )
 
-        discrete_q_values, continuous_q_values = self.get_q_values(observation, self.model)
+        discrete_q_values, continuous_q_values = self.get_q_values(
+            observation, self.model
+        )
 
         discrete_q_value = discrete_q_values[action["binary"]]
 
-        target_discrete_q_values, target_continuous_q_values = self.get_q_values(next_observation, self.target_model)
+        target_discrete_q_values, target_continuous_q_values = self.get_q_values(
+            next_observation, self.target_model
+        )
 
         target_q_value = torch.tensor(reward, dtype=torch.float).to(self.device)
         if not done:
             target_q_value += self.gamma * torch.max(target_discrete_q_values)
 
-        self.loss = self.trainer.optimize_model(discrete_q_value, continuous_q_values, target_q_value, target_continuous_q_values)
+        self.loss = self.trainer.optimize_model(
+            discrete_q_value,
+            continuous_q_values,
+            target_q_value,
+            target_continuous_q_values,
+        )
 
     def update_target_model(self):
         state_dict = self.model.state_dict()
-        self.target_model.load_state_dict(state_dict)       
+        self.target_model.load_state_dict(state_dict)
 
     def decay_epsilon(self):
         self.epsilon = max(self.end_epsilon, self.epsilon * self.epsilon_decay)

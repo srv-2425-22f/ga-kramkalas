@@ -15,9 +15,6 @@ np.random.seed(42)
 random.seed(42)
 
 env = gymnasium.make("VizdoomDeathmatch-v0")
-# observation, info = env.reset()
-# image = np.array(observation["screen"])
-# print(image.shape) # (240, 320, 3)
 
 learning_rate = 0.001
 n_episodes = 2000
@@ -28,9 +25,10 @@ epsilon_decay = 0.9975
 end_epsilon = 0.1
 update_frequency = 100
 
-action_space = int(env.action_space["binary"].n)
+discrete_action_space = int(env.action_space["binary"].n)
+continuous_action_space = env.action_space["continuous"].shape[0]
 
-print(action_space)
+print(f"Disc: {discrete_action_space} | Cont: {continuous_action_space}")
 # device = "cuda" if torch.cuda.is_available else "cpu"
 device = "cpu"
 print(device)
@@ -41,8 +39,8 @@ agent = Basic(
     start_epsilon=start_epsilon,
     epsilon_decay=epsilon_decay,
     end_epsilon=end_epsilon,
-    model=CNN(3, 32, action_space).to(device),
-    target_model=CNN(3, 32, action_space).to(device),
+    model=CNN(3, 32, discrete_action_space, continuous_action_space).to(device),
+    target_model=CNN(3, 32, discrete_action_space, continuous_action_space).to(device),
     device=device,
 )
 
@@ -57,13 +55,13 @@ for episode in range(n_episodes):
     num_steps = 0
     while not done:
         action = agent.get_action(env, obs["screen"])
-        try: 
+        try:
             next_obs, reward, terminated, truncated, info = env.step(action)
         except:
             env.reset()
             break
         next_obs["screen"] = next_obs["screen"].reshape(3, 240, 320)
-      
+
         done = terminated or truncated
 
         if num_steps % 4 == 0:
@@ -86,7 +84,7 @@ for episode in range(n_episodes):
             plot_image_live(image, episode)
 
         obs = next_obs
-        num_steps +=1
+        num_steps += 1
     agent.train_episode()
 
     if loss and agent.loss < np.min(loss):
