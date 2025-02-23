@@ -5,11 +5,14 @@ import matplotlib.pyplot as plt
 import torch
 from helper import plot_image_live, plot_loss_live, plot
 from agents import Basic
+import time
 
 # import tqdm
 from models import CNN
 import random
+# from torch.profiler import profile, record_function, ProfilerActivity # import profiler
 
+torch.cuda.manual_seed(42)
 torch.manual_seed(42)
 np.random.seed(42)
 random.seed(42)
@@ -20,19 +23,19 @@ env = gymnasium.make("VizdoomDeathmatch-v0")
 # print(image.shape) # (240, 320, 3)
 
 learning_rate = 0.001
-n_episodes = 1000
-when_show = 950
+n_episodes = 1300
+when_show = 1280
 start_epsilon = 1.0
 BATCH_SIZE = 32
-epsilon_decay = 0.9975
+epsilon_decay = 0.995
 end_epsilon = 0.1
-update_frequency = 100
+update_frequency = 250
 print(f"\n\n HÄR ÄR ACTION SPACE: {env.action_space}\n\n")
 action_space = int(env.action_space.n)
 
 print(action_space)
-# device = "cuda" if torch.cuda.is_available else "cpu"
-device = "cpu"
+device = "cuda" if torch.cuda.is_available else "cpu"
+# device = "cpu"
 print(device)
 
 agent = Basic(
@@ -50,7 +53,14 @@ env = gymnasium.wrappers.RecordEpisodeStatistics(env, buffer_length=n_episodes)
 
 loss = []
 
+start_time = time.localtime(time.time())
 
+# with profile(
+#     activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
+#     record_shapes=True,
+#     with_stack=True,
+#     schedule=torch.profiler.schedule(wait=1, warmup=1, active=3, repeat=2)
+# ) as prof:
 for episode in range(n_episodes):
     obs, info = env.reset()
     obs["screen"] = obs["screen"].reshape(3, 240, 320)
@@ -91,22 +101,30 @@ for episode in range(n_episodes):
 
         obs = next_obs
         num_steps += 1
+
     agent.train_episode()
 
     if loss and agent.loss < np.min(loss):
         # if(agent.loss < np.min(loss)):
         # print(np.min(loss))
         torch.save(agent.model.state_dict(), "saved_models/best.pth")
-    loss.append(agent.loss)
+    loss.append(agent.loss)       
 
-    print(f"Epsiode: {episode}")
-    if episode % update_frequency == 0:
+    if episode % update_frequency == 0: 
+        print(f"Epsiode: {episode}")       
         agent.train_long(agent.memory, BATCH_SIZE)
         # print("Update target model")
         agent.update_target_model()
         torch.save(agent.model.state_dict(), "saved_models/latest.pth")
 
-    if episode > 200:
+    if episode > 300:
         agent.decay_epsilon()
 
+    # prof.step()
+
+print(f"Started training at: {start_time}")
+print(f"Stopped training at: {time.localtime(time.time())}")
+
 plot(loss, n_episodes)
+
+# print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=20))
