@@ -8,7 +8,7 @@ from agents import Basic
 import time
 
 # import tqdm
-from models import CNN
+from models import CNN, DQN
 import random
 # from torch.profiler import profile, record_function, ProfilerActivity # import profiler
 
@@ -21,11 +21,11 @@ env = gymnasium.make("VizdoomDeathmatch-v0")
 doom_game = env.unwrapped.game
 # observation, info = env.reset()
 # image = np.array(observation["screen"])
-# print(image.shape) # (1200, 1600, 3)
+# print(image.shape) # (120, 160, 3)
 
 learning_rate = 0.001
-n_episodes = 1300
-when_show = 0
+n_episodes = 2
+when_show = 2
 start_epsilon = 1.0
 BATCH_SIZE = 32
 epsilon_decay = 0.995
@@ -33,16 +33,14 @@ end_epsilon = 0.1
 update_frequency = 250
 print(f"\n\n HÄR ÄR ACTION SPACE: {env.action_space}\n\n")
 action_space = int(env.action_space.n)
-possible_enemies = [
-    "Zombieman", "ShotgunGuy", "ChaingunGuy", "Imp", "Demon", "Spectre",
-    "LostSoul", "Cacodemon", "HellKnight", "BaronOfHell", "Arachnotron",
-    "Mancubus", "Archvile", "Revenant", "Cyberdemon", "SpiderMastermind"
-]
+
 
 print(action_space)
 device = "cuda" if torch.cuda.is_available else "cpu"
 # device = "cpu"
 print(device)
+game_variables = env.observation_space["gamevariables"].shape
+game_variables = game_variables[0] + 1 # +1 för enemy_on_screen
 
 agent = Basic(
     env=env,
@@ -50,8 +48,8 @@ agent = Basic(
     start_epsilon=start_epsilon,
     epsilon_decay=epsilon_decay,
     end_epsilon=end_epsilon,
-    model=CNN(3, 32, action_space).to(device),
-    target_model=CNN(3, 32, action_space).to(device),
+    model=DQN(3, 32, action_space, game_variables).to(device),
+    target_model=DQN(3, 32, action_space, game_variables).to(device),
     device=device,
 )
 
@@ -69,53 +67,37 @@ start_time = time.localtime(time.time())
 # ) as prof:
 for episode in range(n_episodes):
     obs, info = env.reset()
-    obs["screen"] = obs["screen"].reshape(3, 1200, 1600)
+    obs["screen"] = obs["screen"].reshape(3, 120, 160)
+    enemy_on_screen = agent.enemies_on_screen()
+    obs["gamevariables"] = np.append(obs["gamevariables"], enemy_on_screen)
+
     done = False
     num_steps = 0
-    enemy_on_screen = False
+
     while not done:
-        num_doom_players = 0
-        enemy_on_screen = False
-        # obs = np.array(obs["screen"])
-        action = agent.get_action(obs["screen"])
-        # print(action)
+        action = agent.get_action(obs)
         try:
             next_obs, reward, terminated, truncated, info = env.step(action)
         except:
             env.reset()
-            break
-
-        unwrapped_state = doom_game.get_state()
+            break        
         
-        if unwrapped_state:
-            labels = unwrapped_state.labels
-            
-            for label in labels:
-                if label.object_name in possible_enemies:
-                    print(label.object_name)
-                    enemy_on_screen = True
-                    break
-                if label.object_name == "DoomPlayer":
-                    num_doom_players+=1
-
-                if num_doom_players > 1:
-                    enemy_on_screen = True
-                    break
-
+        enemy_on_screen = agent.enemies_on_screen()
+        obs["gamevariables"][-1] = enemy_on_screen
                   
-        next_obs["screen"] = next_obs["screen"].reshape(3, 1200, 1600)
+        next_obs["screen"] = next_obs["screen"].reshape(3, 120, 160)
         # print(next_obs["screen"])
         # agent.update(obs["screen"], action, reward, terminated, next_obs["screen"]
         done = terminated or truncated
 
         if num_steps % 4 == 0:
-            agent.train(obs["screen"], action, reward, next_obs["screen"], done)
+            agent.train(obs, action, reward, next_obs, done)
 
         agent.remember(
-            obs["screen"], action, reward, next_obs["screen"], done
+            obs, action, reward, next_obs, done
         )
 
-        image = np.array(obs["screen"]).reshape(1200, 1600, 3)
+        image = np.array(obs["screen"]).reshape(120, 160, 3)
         if episode > when_show:
             plot_image_live(image, episode, enemy_on_screen)
 
@@ -143,6 +125,6 @@ for episode in range(n_episodes):
 print(f"Started training at: {start_time}")
 print(f"Stopped training at: {time.localtime(time.time())}")
 
-plot(loss, n_episodes)
+plot(loss, n_episodes)  
 
 # print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=20))

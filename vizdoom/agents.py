@@ -45,6 +45,11 @@ class Basic:
         self.trainer = QTrainer(self.model, self.lr)
         self.loss = 0
         self.device = device
+        self.possible_enemies = [
+            "Zombieman", "ShotgunGuy", "ChaingunGuy", "Imp", "Demon", "Spectre",
+            "LostSoul", "Cacodemon", "HellKnight", "BaronOfHell", "Arachnotron",
+            "Mancubus", "Archvile", "Revenant", "Cyberdemon", "SpiderMastermind"
+        ]
 
     def get_action(self, state: np.ndarray) -> int:
         """Returns a random or predicted action by the agent. Probability of getting a random action is determined by epsilon.
@@ -60,8 +65,10 @@ class Basic:
             return self.env.action_space.sample()   # Returns a random action from the action_space  
 
         else:
-            state = torch.tensor(state, dtype=torch.float).to(self.device)
-            preds = self.model(state) # Returns list of probabilities with size of action_space
+            # state = torch.tensor(state, dtype=torch.float).to(self.device)
+            image = torch.tensor(state["screen"], dtype=torch.float).to(self.device)
+            game_values = torch.tensor(state["gamevariables"], dtype=torch.float).to(self.device)
+            preds = self.model(image, game_values) # Returns list of probabilities with size of action_space
             preds = torch.softmax(preds, dim=0)
             prediction = torch.argmax(preds).item() # Returns the most probable action, represented by the index of the action space
             return prediction
@@ -109,13 +116,17 @@ class Basic:
             next_state (np.ndarray): the next state, result of action
             done (bool): true if game ended on action
         """
-        state = torch.tensor(state, dtype=torch.float).to(self.device)
-        next_state = torch.tensor(next_state, dtype=torch.float).to(self.device)
+        # print(state)
+        image = torch.tensor(state["screen"], dtype=torch.float).to(self.device)
+        game_values = torch.tensor(state["gamevariables"], dtype=torch.float).to(self.device)
+        next_image = torch.tensor(next_state["screen"], dtype=torch.float).to(self.device)
+        next_game_values = torch.tensor(next_state["gamevariables"], dtype=torch.float).to(self.device)
+        # next_state = torch.tensor(next_state, dtype=torch.float).to(self.device)
 
-        q_values = self.model(state)
+        q_values = self.model(image, game_values)
         q_value = q_values[action]
 
-        target_q_values = self.target_model(next_state)
+        target_q_values = self.target_model(next_image, next_game_values)
 
         target_q_value = torch.tensor(reward, dtype=torch.float).to(self.device)
         if not done:
@@ -143,6 +154,26 @@ class Basic:
 
     #         self.train(state, action, reward, next_state, done)
     #     self.episode_memory.clear()
+
+    def enemies_on_screen(self):
+        unwrapped_state = self.env.unwrapped.game.get_state()
+        num_doom_players = 0
+        
+        if unwrapped_state:
+            labels = unwrapped_state.labels
+            
+            for label in labels:
+                if label.object_name in self.possible_enemies:
+                    # print(label.object_name)
+                    return True
+                if label.object_name == "DoomPlayer":
+                    num_doom_players+=1
+
+                if num_doom_players > 1:
+                    return True
+                
+        return False
+                    
 
 class MemoryData():
     pass
