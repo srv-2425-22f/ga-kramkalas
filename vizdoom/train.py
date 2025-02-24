@@ -18,13 +18,14 @@ np.random.seed(42)
 random.seed(42)
 
 env = gymnasium.make("VizdoomDeathmatch-v0")
+doom_game = env.unwrapped.game
 # observation, info = env.reset()
 # image = np.array(observation["screen"])
-# print(image.shape) # (240, 320, 3)
+# print(image.shape) # (1200, 1600, 3)
 
 learning_rate = 0.001
 n_episodes = 1300
-when_show = 1280
+when_show = 0
 start_epsilon = 1.0
 BATCH_SIZE = 32
 epsilon_decay = 0.995
@@ -32,6 +33,11 @@ end_epsilon = 0.1
 update_frequency = 250
 print(f"\n\n HÄR ÄR ACTION SPACE: {env.action_space}\n\n")
 action_space = int(env.action_space.n)
+possible_enemies = [
+    "Zombieman", "ShotgunGuy", "ChaingunGuy", "Imp", "Demon", "Spectre",
+    "LostSoul", "Cacodemon", "HellKnight", "BaronOfHell", "Arachnotron",
+    "Mancubus", "Archvile", "Revenant", "Cyberdemon", "SpiderMastermind"
+]
 
 print(action_space)
 device = "cuda" if torch.cuda.is_available else "cpu"
@@ -63,19 +69,41 @@ start_time = time.localtime(time.time())
 # ) as prof:
 for episode in range(n_episodes):
     obs, info = env.reset()
-    obs["screen"] = obs["screen"].reshape(3, 240, 320)
+    obs["screen"] = obs["screen"].reshape(3, 1200, 1600)
     done = False
     num_steps = 0
+    enemy_on_screen = False
     while not done:
+        num_doom_players = 0
+        enemy_on_screen = False
         # obs = np.array(obs["screen"])
-        action = agent.get_action(env, obs["screen"])
+        action = agent.get_action(obs["screen"])
         # print(action)
         try:
             next_obs, reward, terminated, truncated, info = env.step(action)
         except:
             env.reset()
             break
-        next_obs["screen"] = next_obs["screen"].reshape(3, 240, 320)
+
+        unwrapped_state = doom_game.get_state()
+        
+        if unwrapped_state:
+            labels = unwrapped_state.labels
+            
+            for label in labels:
+                if label.object_name in possible_enemies:
+                    print(label.object_name)
+                    enemy_on_screen = True
+                    break
+                if label.object_name == "DoomPlayer":
+                    num_doom_players+=1
+
+                if num_doom_players > 1:
+                    enemy_on_screen = True
+                    break
+
+                  
+        next_obs["screen"] = next_obs["screen"].reshape(3, 1200, 1600)
         # print(next_obs["screen"])
         # agent.update(obs["screen"], action, reward, terminated, next_obs["screen"]
         done = terminated or truncated
@@ -84,25 +112,15 @@ for episode in range(n_episodes):
             agent.train(obs["screen"], action, reward, next_obs["screen"], done)
 
         agent.remember(
-            obs["screen"], action, reward, next_obs["screen"], done, agent.memory
-        )
-        agent.remember(
-            obs["screen"],
-            action,
-            reward,
-            next_obs["screen"],
-            done,
-            agent.episode_memory,
+            obs["screen"], action, reward, next_obs["screen"], done
         )
 
-        image = np.array(obs["screen"]).reshape(240, 320, 3)
+        image = np.array(obs["screen"]).reshape(1200, 1600, 3)
         if episode > when_show:
-            plot_image_live(image, episode)
+            plot_image_live(image, episode, enemy_on_screen)
 
         obs = next_obs
         num_steps += 1
-
-    agent.train_episode()
 
     if loss and agent.loss < np.min(loss):
         # if(agent.loss < np.min(loss)):
@@ -112,7 +130,7 @@ for episode in range(n_episodes):
 
     if episode % update_frequency == 0: 
         print(f"Epsiode: {episode}")       
-        agent.train_long(agent.memory, BATCH_SIZE)
+        agent.train_long(BATCH_SIZE)
         # print("Update target model")
         agent.update_target_model()
         torch.save(agent.model.state_dict(), "saved_models/latest.pth")

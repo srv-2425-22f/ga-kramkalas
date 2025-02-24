@@ -37,7 +37,7 @@ class CNN(nn.Module):
             ),
             nn.ReLU(),
         )
-        dummy_input = torch.randn(3, 240, 320)
+        dummy_input = torch.randn(3, 1200, 1600)
         dummy_input = self._forward(dummy_input)
         flattened_size = dummy_input.numel()
         flattened_size = int(flattened_size)

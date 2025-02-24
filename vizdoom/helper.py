@@ -5,11 +5,11 @@ import numpy as np
 
 plt.ion()
 
-def plot_image_live(image, episode):
+def plot_image_live(image, episode, enemy_on_screen):
     display.clear_output(wait=True)
     display.display(plt.gcf())
     plt.clf()
-    plt.title(f'Episode: {episode}')
+    plt.title(f'DANGER!?!?!? {enemy_on_screen}')
     plt.imshow(image)
     plt.show(block=False)
     plt.pause(.01)
