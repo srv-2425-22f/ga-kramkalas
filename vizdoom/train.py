@@ -24,8 +24,9 @@ doom_game = env.unwrapped.game
 # print(image.shape) # (120, 160, 3)
 
 learning_rate = 0.001
-n_episodes = 2
-when_show = 2
+n_episodes = 50
+when_show = 0
+when_decay = 100
 start_epsilon = 1.0
 BATCH_SIZE = 32
 epsilon_decay = 0.995
@@ -42,6 +43,8 @@ print(device)
 game_variables = env.observation_space["gamevariables"].shape
 game_variables = game_variables[0] + 1 # +1 för enemy_on_screen
 
+env = gymnasium.wrappers.RecordEpisodeStatistics(env, buffer_length=n_episodes)
+
 agent = Basic(
     env=env,
     learning_rate=learning_rate,
@@ -53,12 +56,12 @@ agent = Basic(
     device=device,
 )
 
-env = gymnasium.wrappers.RecordEpisodeStatistics(env, buffer_length=n_episodes)
+
 
 loss = []
 
-start_time = time.localtime(time.time())
-
+start_time = time.time()
+print(f"Started training at: {time.localtime(start_time)}")
 # with profile(
 #     activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
 #     record_shapes=True,
@@ -66,6 +69,7 @@ start_time = time.localtime(time.time())
 #     schedule=torch.profiler.schedule(wait=1, warmup=1, active=3, repeat=2)
 # ) as prof:
 for episode in range(n_episodes):
+    print(f"Episode: {episode}")
     obs, info = env.reset()
     obs["screen"] = obs["screen"].reshape(3, 120, 160)
     enemy_on_screen = agent.enemies_on_screen()
@@ -83,11 +87,10 @@ for episode in range(n_episodes):
             break        
         
         enemy_on_screen = agent.enemies_on_screen()
-        obs["gamevariables"][-1] = enemy_on_screen
+        print(f"\n\nEnemy on screen during loop? {enemy_on_screen}")
+        next_obs["gamevariables"] = np.append(next_obs["gamevariables"], enemy_on_screen)     
                   
         next_obs["screen"] = next_obs["screen"].reshape(3, 120, 160)
-        # print(next_obs["screen"])
-        # agent.update(obs["screen"], action, reward, terminated, next_obs["screen"]
         done = terminated or truncated
 
         if num_steps % 4 == 0:
@@ -99,31 +102,31 @@ for episode in range(n_episodes):
 
         image = np.array(obs["screen"]).reshape(120, 160, 3)
         if episode > when_show:
+            print(f"Enemy on screen before sending to plot? {enemy_on_screen}")
             plot_image_live(image, episode, enemy_on_screen)
 
         obs = next_obs
         num_steps += 1
 
     if loss and agent.loss < np.min(loss):
-        # if(agent.loss < np.min(loss)):
-        # print(np.min(loss))
         torch.save(agent.model.state_dict(), "saved_models/best.pth")
     loss.append(agent.loss)       
 
     if episode % update_frequency == 0: 
-        print(f"Epsiode: {episode}")       
+        print("Training")
         agent.train_long(BATCH_SIZE)
-        # print("Update target model")
         agent.update_target_model()
         torch.save(agent.model.state_dict(), "saved_models/latest.pth")
 
-    if episode > 300:
+    if episode > when_decay:
         agent.decay_epsilon()
 
     # prof.step()
 
-print(f"Started training at: {start_time}")
-print(f"Stopped training at: {time.localtime(time.time())}")
+end_time = time.time()
+print(f"Started training at: {time.localtime(start_time)}")
+print(f"Stopped training at: {time.localtime(end_time)}")
+print(f"Total time trained: {(end_time - start_time)/60} min")
 
 plot(loss, n_episodes)  
 

@@ -98,8 +98,10 @@ class Basic:
 
         for state, action, reward, next_state, done in random_samples:
 
-            state = np.array(state)
-            next_state = np.array(next_state)
+            # state = np.array(state)
+            # next_state = np.array(next_state)
+            # print(f"\ntrain long state: {state}")
+            # print(f"train long state shape: {state.shape}\n")
 
             self.train(state, action, reward, next_state, done)
 
@@ -116,14 +118,13 @@ class Basic:
             next_state (np.ndarray): the next state, result of action
             done (bool): true if game ended on action
         """
-        # print(state)
+
         image = torch.tensor(state["screen"], dtype=torch.float).to(self.device)
         game_values = torch.tensor(state["gamevariables"], dtype=torch.float).to(self.device)
         next_image = torch.tensor(next_state["screen"], dtype=torch.float).to(self.device)
         next_game_values = torch.tensor(next_state["gamevariables"], dtype=torch.float).to(self.device)
-        # next_state = torch.tensor(next_state, dtype=torch.float).to(self.device)
 
-        q_values = self.model(image, game_values)
+        q_values = self.model(image, game_values).squeeze()
         q_value = q_values[action]
 
         target_q_values = self.target_model(next_image, next_game_values)
@@ -157,21 +158,26 @@ class Basic:
 
     def enemies_on_screen(self):
         unwrapped_state = self.env.unwrapped.game.get_state()
+        print(unwrapped_state)
         num_doom_players = 0
         
         if unwrapped_state:
             labels = unwrapped_state.labels
+            print(f"labels: {labels}")
             
             for label in labels:
+                print(f"Num doom players in label loop: {num_doom_players}")
                 if label.object_name in self.possible_enemies:
-                    # print(label.object_name)
+                    print(f"Return true in possible enemies")
                     return True
                 if label.object_name == "DoomPlayer":
                     num_doom_players+=1
 
                 if num_doom_players > 1:
+                    print(f"Return true in possible doom player")
                     return True
-                
+        
+        print(f"return false")
         return False
                     
 

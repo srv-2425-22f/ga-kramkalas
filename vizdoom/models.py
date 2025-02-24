@@ -73,12 +73,13 @@ class DQN(nn.Module):
         action_space: float,
         game_value_size: int
     ):
-        """
-        Initializes a Convolutional Neural Network model which takes in an image
+        """_summary_
 
         Args:
-            in_channels: Number of color channels of the image
-            hidden_size
+            in_channels (int): _description_
+            hidden_size (int): _description_
+            action_space (float): _description_
+            game_value_size (int): _description_
         """
         super().__init__()
 
@@ -98,31 +99,31 @@ class DQN(nn.Module):
                 stride=2,
                 padding=0,
             ),
-            nn.ReLU(),
+            nn.ReLU()
         )
         dummy_input = torch.randn(3, 120, 160)
         dummy_input = self._forward(dummy_input)
         flattened_size = dummy_input.numel()
         flattened_size = int(flattened_size)
 
-        self.classifier = nn.Sequential(
-            nn.Linear(in_features=flattened_size + game_value_size, out_features=action_space),
-            # nn.ReLU(),
-            # nn.Linear(in_features=1024, out_features=action_space),
+        self.flatten = nn.Flatten(start_dim=0, end_dim=-1)
+
+        self.linear = nn.Sequential(
+            nn.Linear(in_features=flattened_size + game_value_size, out_features=128)
         )
+
+        self.temporal_encoder = nn.LSTMCell(128, action_space)
 
     def _forward(self, x):
         x = self.conv(x)
         return x
 
     def forward(self, image: torch.Tensor, game_values: torch.Tensor):
-        print(f"image: {image}")
-        print(f"game_values: {game_values}")
         x = self._forward(image)
-        x = x.view(x.size(0), -1)
-        x = torch.concat((x, game_values.unsqueeze(0)), dim=1)
-        x = self.classifier(x)
-        torch.cat
+        x = self.flatten(x)
+        x = torch.cat((x.unsqueeze(0), game_values.unsqueeze(0)), dim=1)
+        x = self.linear(x)
+        x, _ = self.temporal_encoder(x) # Returns short-term memory and long-term memory. Short-term is for prediction
         return x
     
     def save(self, file_name="model.pth"):
@@ -140,12 +141,8 @@ class QTrainer:
         self.loss_fn = nn.MSELoss()
 
     def optimize_model(self, pred, target):
-        # pred = torch.tensor(pred, dtype=torch.float)
-        # target = torch.tensor(target, dtype=torch.float)
-        # print(pred.type(), target.type())
         loss = self.loss_fn(pred, target)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        # print(f"Loss: {loss:.4f} | Prediction: {pred:.4f}, Target: {target:.4f}")
         return loss.cpu().detach().numpy()
