@@ -119,20 +119,26 @@ class Basic:
             done (bool): true if game ended on action
         """
 
-        image = torch.tensor(state["screen"], dtype=torch.float).to(self.device)
+        image = torch.tensor(state["screen"], dtype=torch.float).to(self.device) / 255.0
         game_values = torch.tensor(state["gamevariables"], dtype=torch.float).to(self.device)
-        next_image = torch.tensor(next_state["screen"], dtype=torch.float).to(self.device)
+        next_image = torch.tensor(next_state["screen"], dtype=torch.float).to(self.device) / 255.0
         next_game_values = torch.tensor(next_state["gamevariables"], dtype=torch.float).to(self.device)
 
-        q_values = self.model(image, game_values).squeeze()
+        # print("Get q:")
+        q_values = self.model(image, game_values)
+        # print(f"q_values: {q_values}")
+        q_values = q_values.squeeze()
+        # print(f"q_values after squeeze: {q_values}")
         q_value = q_values[action]
 
+        # print("Get target_q:")
         target_q_values = self.target_model(next_image, next_game_values)
 
         target_q_value = torch.tensor(reward, dtype=torch.float).to(self.device)
         if not done:
             target_q_value += self.gamma * torch.max(target_q_values)
 
+        # print(f"q_value: {q_value}\ntarget_q: {target_q_value}\n\n")
         self.loss = self.trainer.optimize_model(q_value, target_q_value)
 
     def update_target_model(self):
@@ -158,26 +164,26 @@ class Basic:
 
     def enemies_on_screen(self):
         unwrapped_state = self.env.unwrapped.game.get_state()
-        print(unwrapped_state)
+        # print(unwrapped_state)
         num_doom_players = 0
         
         if unwrapped_state:
             labels = unwrapped_state.labels
-            print(f"labels: {labels}")
+            # print(f"labels: {labels}")
             
             for label in labels:
-                print(f"Num doom players in label loop: {num_doom_players}")
+                # print(f"Num doom players in label loop: {num_doom_players}")
                 if label.object_name in self.possible_enemies:
-                    print(f"Return true in possible enemies")
+                    # print(f"Return true in possible enemies")
                     return True
                 if label.object_name == "DoomPlayer":
                     num_doom_players+=1
 
                 if num_doom_players > 1:
-                    print(f"Return true in possible doom player")
+                    # print(f"Return true in possible doom player")
                     return True
         
-        print(f"return false")
+        # print(f"return false")
         return False
                     
 

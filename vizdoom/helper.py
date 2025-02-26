@@ -5,11 +5,11 @@ import numpy as np
 
 plt.ion()
 
-def plot_image_live(image, episode, enemy_on_screen):
+def plot_image_live(image, episode):
     display.clear_output(wait=True)
     display.display(plt.gcf())
     plt.clf()
-    plt.title(f'DANGER!?!?!? {enemy_on_screen}')
+    plt.title(f'Episode {episode}')
     plt.imshow(image)
     plt.show(block=False)
     plt.pause(.01)
@@ -43,17 +43,18 @@ def accuracy_fn(y_true, y_pred):
     acc = (correct / len(y_pred)) * 100
     return acc
 
-def plot(reward, episodes):
+def plot(loss, episodes, kd):
     display.clear_output(wait=True)
     display.display(plt.gcf())
     plt.clf()
-    plt.figure(figsize=(10, 5))  # Create a new figure
-    plt.ylim(top=100)
-    # plt.ylim(bottom=0)
-    # plt.yscale("log")
-    plt.plot(reward, label="Loss", color="blue")    
+    # plt.figure(figsize=(10, 5))  # Create a new figure
+    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(10,5))
+    plt.ylim(top=50)
+    axes[0].plot(loss, label="Loss", color="blue")
+    axes[1].plot(kd, label="K/D", color="red")    
+    axes[0].set_title(f"Loss Over Epochs | Episodes: {episodes}")
+    axes[1].set_title(f"K/D Over Epochs | Episodes: {episodes}")
     plt.xlabel("Number of Episodes")
     plt.ylabel("Loss")
     plt.legend(loc="best")
-    plt.title(f"Loss Over Epochs | Episodes: {episodes}")
     plt.show(block=True)

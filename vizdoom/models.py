@@ -99,7 +99,8 @@ class DQN(nn.Module):
                 stride=2,
                 padding=0,
             ),
-            nn.ReLU()
+            nn.ReLU(),
+            # nn.Tanh()
         )
         dummy_input = torch.randn(3, 120, 160)
         dummy_input = self._forward(dummy_input)
@@ -109,10 +110,12 @@ class DQN(nn.Module):
         self.flatten = nn.Flatten(start_dim=0, end_dim=-1)
 
         self.linear = nn.Sequential(
-            nn.Linear(in_features=flattened_size + game_value_size, out_features=128)
+            nn.Linear(in_features=flattened_size + game_value_size, out_features=256),
+            nn.LayerNorm(256),
+            nn.Tanh()
         )
 
-        self.temporal_encoder = nn.LSTMCell(128, action_space)
+        self.temporal_encoder = nn.LSTMCell(256, action_space)
 
     def _forward(self, x):
         x = self.conv(x)
@@ -120,10 +123,14 @@ class DQN(nn.Module):
 
     def forward(self, image: torch.Tensor, game_values: torch.Tensor):
         x = self._forward(image)
+        # print(f"Conv mean: {x.mean().item()}")
         x = self.flatten(x)
         x = torch.cat((x.unsqueeze(0), game_values.unsqueeze(0)), dim=1)
+        # print(f"Flatten mean: {x.mean().item()}")
         x = self.linear(x)
+        # print(f"Linear mean: {x.mean().item()}")
         x, _ = self.temporal_encoder(x) # Returns short-term memory and long-term memory. Short-term is for prediction
+        # print(f"LSTM mean: {x.mean().item()}\n")
         return x
     
     def save(self, file_name="model.pth"):
