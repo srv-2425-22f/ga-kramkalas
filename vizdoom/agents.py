@@ -132,11 +132,14 @@ class Basic:
         q_value = q_values[action]
 
         # print("Get target_q:")
-        target_q_values = self.target_model(next_image, next_game_values)
+        with torch.no_grad():
+            target_q_values = self.target_model(next_image, next_game_values).to(self.device)
 
-        target_q_value = torch.tensor(reward, dtype=torch.float).to(self.device)
-        if not done:
-            target_q_value += self.gamma * torch.max(target_q_values)
+            target_q_value = torch.max(target_q_values).to(self.device).detach()
+            if not done:
+                target_q_value = reward + self.gamma * torch.max(target_q_values)
+            else:
+                target_q_value = torch.tensor(reward, dtype=torch.float).to(self.device)
 
         # print(f"q_value: {q_value}\ntarget_q: {target_q_value}\n\n")
         self.loss = self.trainer.optimize_model(q_value, target_q_value)
@@ -145,7 +148,8 @@ class Basic:
         """Updates the target_models' parameters to the models' parameters 
         """
         state_dict = self.model.state_dict()
-        self.target_model.load_state_dict(state_dict)       
+        self.target_model.load_state_dict(state_dict)  
+        self.target_model.eval()     
 
     def decay_epsilon(self):
         """_summary_

@@ -23,15 +23,15 @@ doom_game = env.unwrapped.game
 # image = np.array(observation["screen"])
 # print(image.shape) # (120, 160, 3)
 
-learning_rate = 0.0007
-n_episodes = 20000
-when_show = 20000
-when_decay = 1000
-start_epsilon = 1.0
+learning_rate = 0.001
+n_episodes = 30_000
+when_show = 30_000
+when_decay = 5_000
+start_epsilon = 1
 BATCH_SIZE = 32
-epsilon_decay = 0.995
-end_epsilon = 0.1
-update_frequency = 500
+epsilon_decay = 0.9995
+end_epsilon = 0.05
+update_frequency = 1_000
 print(f"\n\n HÄR ÄR ACTION SPACE: {env.action_space}\n\n")
 action_space = int(env.action_space.n)
 
@@ -44,21 +44,26 @@ game_variables = game_variables[0] + 1 # +1 för enemy_on_screen
 
 env = gymnasium.wrappers.RecordEpisodeStatistics(env, buffer_length=n_episodes)
 
+model = DQN(3,32,action_space,game_variables)
+# model.load_state_dict(torch.load("saved_models/best.pth"))
+target_model = DQN(3,32,action_space,game_variables)
+# target_model.load_state_dict(torch.load("saved_models/best.pth"))
+
+
 agent = Basic(
     env=env,
     learning_rate=learning_rate,
     start_epsilon=start_epsilon,
     epsilon_decay=epsilon_decay,
     end_epsilon=end_epsilon,
-    model=DQN(3, 32, action_space, game_variables).to(device),
-    target_model=DQN(3, 32, action_space, game_variables).to(device),
+    model=model.to(device),
+    target_model=target_model.to(device),
     device=device,
 )
 
 
 frag_count = []
 death_count = []
-# kd = []
 loss = []
 
 start_time = time.time()
@@ -70,7 +75,7 @@ print(f"Started training at: {time.localtime(start_time)}")
 #     schedule=torch.profiler.schedule(wait=1, warmup=1, active=3, repeat=2)
 # ) as prof:
 for episode in range(n_episodes):
-    print(f"\nEpisode: {episode}")
+    # print(f"\nEpisode: {episode}")7
     obs, info = env.reset()
     obs["screen"] = obs["screen"].reshape(3, 120, 160)
     enemy_on_screen = agent.enemies_on_screen()
@@ -142,7 +147,6 @@ print(f"Started training at: {time.localtime(start_time)}")
 print(f"Stopped training at: {time.localtime(end_time)}")
 print(f"Total time trained: {(end_time - start_time)/60} min")
 
-kd = np.divide(frag_count,death_count)
-plot(loss, n_episodes, kd)  
+plot(loss, n_episodes, frag_count)  
 
 # print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=20))
