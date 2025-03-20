@@ -24,14 +24,14 @@ doom_game = env.unwrapped.game
 # print(image.shape) # (120, 160, 3)
 
 learning_rate = 0.001
-n_episodes = 30_000
-when_show = 30_000
-when_decay = 5_000
+n_episodes = 75_000
+when_show = 75_000
+when_decay = 10_000
 start_epsilon = 1
 BATCH_SIZE = 32
-epsilon_decay = 0.9995
+epsilon_decay = 0.9999
 end_epsilon = 0.05
-update_frequency = 1_000
+update_frequency = 2000
 print(f"\n\n HÄR ÄR ACTION SPACE: {env.action_space}\n\n")
 action_space = int(env.action_space.n)
 
@@ -61,6 +61,7 @@ agent = Basic(
     device=device,
 )
 
+agent.update_target_model()
 
 frag_count = []
 death_count = []
@@ -124,7 +125,8 @@ for episode in range(n_episodes):
     # print(frag_count, death_count)
 
     if loss and agent.loss < np.min(loss):
-        torch.save(agent.model.state_dict(), "saved_models/best.pth")
+        torch.save(agent.model.state_dict(), "saved_models/100k_best.pth")
+        pass
     if num_train_steps > 0:
         avg_loss = total_loss / num_train_steps
     else:
@@ -132,10 +134,10 @@ for episode in range(n_episodes):
     loss.append(avg_loss)       
 
     if episode % update_frequency == 0 and episode > 0: 
-        print("Training")
+        print(f"Training @ episode: {episode}")
         agent.train_long(BATCH_SIZE)
         agent.update_target_model()
-        torch.save(agent.model.state_dict(), "saved_models/latest.pth")
+        torch.save(agent.model.state_dict(), f"saved_models/100k_ep_{episode}.pth")
 
     if episode > when_decay:
         agent.decay_epsilon()

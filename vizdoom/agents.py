@@ -69,8 +69,11 @@ class Basic:
             image = torch.tensor(state["screen"], dtype=torch.float).to(self.device)
             game_values = torch.tensor(state["gamevariables"], dtype=torch.float).to(self.device)
             preds = self.model(image, game_values) # Returns list of probabilities with size of action_space
-            preds = torch.softmax(preds, dim=0)
+            # print(f"\nPredictions before softmax: {preds}")
+            # preds = torch.softmax(preds, dim=0)
+            # print(f"Predictions after softmax: {preds}")
             prediction = torch.argmax(preds).item() # Returns the most probable action, represented by the index of the action space
+            # print(f"Prediction: {prediction}")
             return prediction
 
     def remember(self, state: np.ndarray, action: int, reward: float, next_state: np.ndarray, done: bool):
