@@ -140,6 +140,107 @@ class DQN(nn.Module):
         file_name = os.path.join(path, file_name)
         torch.save(self.state_dict(), file_name)
 
+class ViT(nn.Module):
+    def __init__(self, 
+                 image_size: tuple[int, int], # (H=240, W=320)
+                 in_channels: int, 
+                 action_space: int, 
+                 game_value_size: int,
+                 patch_size: int=16,
+                 embed_dim: int=768, 
+                 depth: int=3,
+                 n_heads: int=3,
+    ):
+        super().__init__()
+        self.patch_embed = PatchEmbedding(image_size, patch_size, in_channels, embed_dim)
+        self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
+        self.pos_embed = nn.Parameter(torch.zeros(1, self.patch_embed.n_patches + 1, embed_dim))
+        self.transformer = nn.Sequential(*[
+            TransformerEncoderLayer(embed_dim, n_heads) for _ in range(depth)
+        ])
+
+        # OM MAN ANVÄNDER LSTM #
+        # self.fc_before_lstm = nn.Sequential(
+        #     nn.Linear(embed_dim + game_value_size, 256), # linear uses images data and game values
+        #     nn.LayerNorm(256),
+        #     nn.Tanh(),
+        #     nn.LSTMCell(256, 256)
+        # )
+        # self.temporal_encoder = nn.LSTMCell(256, 256)
+        # self.classifier = nn.Linear(256, action_space)
+        #
+        # self.hidden_state = None
+        # self.cell_state = None
+
+        # OM MAN INTE ANVÄNDER LSTM #
+        self.classifier = nn.Linear(embed_dim + game_value_size, action_space)
+    
+    # def initialize_hidden(self, batch_size: int):
+    #     """Call this at the start of each episode"""
+    #     # model.initialize_hidden(batch_size=32)
+    #     device = next(self.parameters()).device
+    #     self.hidden_state = torch.zeros(batch_size, self.lstm.hidden_size, device=device)
+    #     self.cell_state = torch.zeros(batch_size, self.lstm.hidden_size, device=device)
+
+    def forward(self, image: torch.Tensor, game_values: torch.Tensor):
+        B = image.shape[0]
+        x = self.patch_embed(image)
+        cls_token = self.cls_token.expand(B, -1, -1)
+        x = torch.cat([cls_token, x], dim=1)
+        x += self.pos_embed
+        x = self.transformer(x)
+        x = x[:, 0]
+        x = torch.cat([x, game_values], dim=1)
+
+        # OM MAN ANVÄNDER LSTM #
+        # x = self.fc_before_lstm(x)
+        # x = self.temporal_encoder(x)
+
+        return self.classifier(x)
+
+class PatchEmbedding(nn.Module):
+    def __init__(self,
+                 image_size: tuple[int, int], # (H, W)
+                 patch_size: int, 
+                 in_channels: int, 
+                 embed_dim: int, 
+    ):
+        super().__init__()
+        self.proj = nn.Conv2d(in_channels=in_channels,
+                              out_channels=embed_dim,
+                              kernel_size=patch_size,
+                              stride=patch_size)
+        self.n_patches = (image_size[0] // patch_size) * (image_size[1] // patch_size)
+    
+    def forward(self, x: torch.Tensor):
+        x = self.proj(x) # (B, D, H/P, W/P)
+        x = x.flatten(2).transpose(1, 2) # (B, N, D)
+        return x
+
+class TransformerEncoderLayer(nn.Module):
+    def __init__(self, 
+                 embed_dim, 
+                 n_heads, 
+                 mlp_ratio=4.0, 
+                 dropout=0.1):
+        super().__init__()
+        self.norm1 = nn.LayerNorm(embed_dim)
+        self.attn = nn.MultiheadAttention(embed_dim, n_heads, dropout=dropout, batch_first=True)
+        self.norm2 = nn.LayerNorm(embed_dim)
+        self.mlp = nn.Sequential(
+            nn.Linear(embed_dim, int(embed_dim * mlp_ratio)),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(int(embed_dim * mlp_ratio), embed_dim),
+            nn.Dropout(dropout)
+        )
+
+    def forward(self, x: torch.Tensor):
+        x = x + self.attn(self.norm1(x), self.norm1(x), self.norm1(x))[0]
+        x = x + self.mlp(self.norm2(x))
+        return x
+        
+
 class QTrainer:
     def __init__(self, model, lr):
         self.lr = lr

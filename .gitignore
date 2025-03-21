@@ -8,3 +8,4 @@ tempvenv/
 mattias/
 matiias/
 saved_models/
+.venv/
