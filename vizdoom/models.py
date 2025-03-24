@@ -115,7 +115,12 @@ class DQN(nn.Module):
             nn.Tanh()
         )
 
-        self.temporal_encoder = nn.LSTMCell(256, action_space)
+        self.temporal_encoder = nn.LSTMCell(256, 256)
+
+        self.classifier = nn.Linear(256, action_space)
+
+        self.hidden_state = None
+        self.cell_state = None   
 
     def _forward(self, x):
         x = self.conv(x)
@@ -131,7 +136,14 @@ class DQN(nn.Module):
         # print(f"Linear mean: {x.mean().item()}")
         x, _ = self.temporal_encoder(x) # Returns short-term memory and long-term memory. Short-term is for prediction
         # print(f"LSTM mean: {x.mean().item()}\n")
+        x = self.classifier(x)
         return x
+    
+    def initialize_hidden(self, batch_size: int):
+        """Call this at the start of each episode"""
+        device = next(self.parameters()).device
+        self.hidden_state = torch.zeros(batch_size, self.temporal_encoder.hidden_size, device=device)
+        self.cell_state = torch.zeros(batch_size, self.temporal_encoder.hidden_size, device=device)
     
     def save(self, file_name="model.pth"):
         path = "./saved_models"
@@ -164,7 +176,6 @@ class ViT(nn.Module):
         #     nn.Linear(embed_dim + game_value_size, 256), # linear uses images data and game values
         #     nn.LayerNorm(256),
         #     nn.Tanh(),
-        #     nn.LSTMCell(256, 256)
         # )
         # self.temporal_encoder = nn.LSTMCell(256, 256)
         # self.classifier = nn.Linear(256, action_space)
@@ -174,6 +185,7 @@ class ViT(nn.Module):
 
         # OM MAN INTE ANVÄNDER LSTM #
         self.classifier = nn.Linear(embed_dim + game_value_size, action_space)
+
     
     # def initialize_hidden(self, batch_size: int):
     #     """Call this at the start of each episode"""
@@ -239,7 +251,6 @@ class TransformerEncoderLayer(nn.Module):
         x = x + self.attn(self.norm1(x), self.norm1(x), self.norm1(x))[0]
         x = x + self.mlp(self.norm2(x))
         return x
-        
 
 class QTrainer:
     def __init__(self, model, lr):
