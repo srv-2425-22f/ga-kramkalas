@@ -100,15 +100,17 @@ for episode in range(n_episodes):
         action = agent.get_action(obs)
         try:
             next_obs, reward, terminated, truncated, info = env.step(action)
+            frag = obs["gamevariables"][0]
+            frags += (frag)
         except:
             env.reset()
             break        
 
         enemy_on_screen = agent.enemies_on_screen()
         if enemy_on_screen and action == 5:
-            reward += 30
+            reward += 50
         else:
-            reward = -0.1
+            reward = -1
 
         
         total_reward += reward
@@ -140,13 +142,12 @@ for episode in range(n_episodes):
         obs = next_obs
         num_steps += 1   
 
-        frags += obs["gamevariables"][0]
         if(obs["gamevariables"][0]):
             print("Killed an enemy")
         deaths += obs["gamevariables"][1]+1
-
-    print(var)
-    print(var2)
+   
+    print(frags)
+    print(total_reward)
     frag_count.append(frags)
     death_count.append(deaths)
     rewards.append(total_reward)

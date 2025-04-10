@@ -23,15 +23,15 @@ doom_game = env.unwrapped.game
 # image = np.array(observation["screen"])
 # print(image.shape) # (120, 160, 3)
 
-learning_rate = 0.01
-n_episodes = 10000
-when_show = 10000
-when_decay = 4000
+learning_rate = 0.005
+n_episodes = 150_000
+when_show = 150_000
+when_decay = 50_000
 start_epsilon = 1
 BATCH_SIZE = 32
-epsilon_decay = 0.999
+epsilon_decay = 0.9999
 end_epsilon = 0.05
-update_frequency = 200
+update_frequency = 2_000
 action_space = int(env.action_space.n)
 
 device = "cuda" if torch.cuda.is_available else "cpu"
@@ -102,11 +102,14 @@ for episode in range(n_episodes):
             env.reset()
             break        
 
+        frag = obs["gamevariables"][0]
+        frags += (frag)
+
         enemy_on_screen = agent.enemies_on_screen()
         if enemy_on_screen and action == 5:
-            reward += 30
+            reward += 50
         else:
-            reward = -0.1
+            reward = -1
         
         total_reward += reward
 
