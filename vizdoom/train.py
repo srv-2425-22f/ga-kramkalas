@@ -8,7 +8,7 @@ from agents import Basic
 import time
 
 # import tqdm
-from models import CNN, DQN
+from models import CNN, DQN, ViT
 import random
 # from torch.profiler import profile, record_function, ProfilerActivity # import profiler
 
@@ -23,19 +23,17 @@ doom_game = env.unwrapped.game
 # image = np.array(observation["screen"])
 # print(image.shape) # (120, 160, 3)
 
-learning_rate = 0.003
-n_episodes = 50_000
-when_show = 50_000
-when_decay = 10_000
+learning_rate = 0.01
+n_episodes = 10000
+when_show = 10000
+when_decay = 4000
 start_epsilon = 1
 BATCH_SIZE = 32
 epsilon_decay = 0.999
 end_epsilon = 0.05
-update_frequency = 2000
-print(f"\n\n HÄR ÄR ACTION SPACE: {env.action_space}\n\n")
+update_frequency = 200
 action_space = int(env.action_space.n)
 
-print(action_space)
 device = "cuda" if torch.cuda.is_available else "cpu"
 # device = "cpu"
 print(device)
@@ -45,9 +43,11 @@ game_variables = game_variables[0] + 1 # +1 för enemy_on_screen
 env = gymnasium.wrappers.RecordEpisodeStatistics(env, buffer_length=n_episodes)
 
 model = DQN(3,32,action_space,game_variables)
-# model.load_state_dict(torch.load("saved_models/best.pth"))
+# model = ViT((120, 160), 3, action_space, game_variables)
+# model.load_state_dict(torch.load("saved_models/skjut_60.pth"))
 target_model = DQN(3,32,action_space,game_variables)
-# target_model.load_state_dict(torch.load("saved_models/best.pth"))
+# target_model = ViT((120, 160), 3, action_space, game_variables)
+# target_model.load_state_dict(torch.load("saved_models/skjut_60.pth"))
 
 
 agent = Basic(
@@ -66,6 +66,7 @@ agent.update_target_model()
 frag_count = []
 death_count = []
 loss = []
+rewards = []
 
 start_time = time.time()
 print(f"Started training at: {time.localtime(start_time)}")
@@ -85,10 +86,13 @@ for episode in range(n_episodes):
     done = False
     num_steps = 0
     total_loss = 0
+    total_reward = 0
     num_train_steps = 0
+    frags = 0
+    deaths = 0
 
-    agent.model.initialize_hidden(batch_size=32)
-    agent.target_model.initialize_hidden(batch_size=32)
+    # agent.model.initialize_hidden(batch_size=32)
+    # agent.target_model.initialize_hidden(batch_size=32)
 
     while not done:
         action = agent.get_action(obs)
@@ -97,11 +101,18 @@ for episode in range(n_episodes):
         except:
             env.reset()
             break        
-        
+
         enemy_on_screen = agent.enemies_on_screen()
+        if enemy_on_screen and action == 5:
+            reward += 30
+        else:
+            reward = -0.1
+        
+        total_reward += reward
+
         # print(f"\n\nEnemy on screen during loop? {enemy_on_screen}")
         next_obs["gamevariables"] = np.append(next_obs["gamevariables"], enemy_on_screen)     
-                  
+        
         next_obs["screen"] = next_obs["screen"].reshape(3, 120, 160)
         done = terminated or truncated
 
@@ -123,12 +134,16 @@ for episode in range(n_episodes):
         obs = next_obs
         num_steps += 1
 
-    frag_count.append(obs["gamevariables"][0])
-    death_count.append(obs["gamevariables"][1]+1)
+        frags += obs["gamevariables"][0]
+        deaths += obs["gamevariables"][1]+1
+
+    frag_count.append(frags)
+    death_count.append(deaths)
+    rewards.append(total_reward)
     # print(frag_count, death_count)
 
     if loss and agent.loss < np.min(loss):
-        # torch.save(agent.model.state_dict(), "saved_models/100k_best.pth")
+        torch.save(agent.model.state_dict(), "saved_models/nu_snela_skjut_best.pth")
         pass
     if num_train_steps > 0:
         avg_loss = total_loss / num_train_steps
@@ -140,7 +155,7 @@ for episode in range(n_episodes):
         print(f"Training @ episode: {episode}")
         agent.train_long(BATCH_SIZE)
         agent.update_target_model()
-        # torch.save(agent.model.state_dict(), f"saved_models/100k_ep_{episode}.pth")
+        torch.save(agent.model.state_dict(), f"saved_models/nu_snela_skjut_{episode}.pth")
 
     if episode > when_decay:
         agent.decay_epsilon()
@@ -152,6 +167,6 @@ print(f"Started training at: {time.localtime(start_time)}")
 print(f"Stopped training at: {time.localtime(end_time)}")
 print(f"Total time trained: {(end_time - start_time)/60} min")
 
-plot(loss, n_episodes, frag_count)  
+plot(n_episodes, loss, rewards, frag_count)  
 
 # print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=20))

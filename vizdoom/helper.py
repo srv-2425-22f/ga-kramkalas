@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 from IPython import display
 import torch
 import numpy as np
+import time
 
 plt.ion()
 
@@ -43,18 +44,23 @@ def accuracy_fn(y_true, y_pred):
     acc = (correct / len(y_pred)) * 100
     return acc
 
-def plot(loss, episodes, kd):
+def plot(episodes, loss, rewards, kd):
+    for i in range(len(rewards)):
+        reward = np.float32(rewards[i])
+        rewards[i] = reward
     display.clear_output(wait=True)
     display.display(plt.gcf())
     plt.clf()
     # plt.figure(figsize=(10, 5))  # Create a new figure
-    fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(10,5))
-    plt.ylim(top=50)
+    fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(10,5))
+    # plt.ylim(top=50)
     axes[0].plot(loss, label="Loss", color="blue")
-    axes[1].plot(kd, label="K/D", color="red")    
+    axes[1].plot(rewards, label="Reward", color="red")
+    axes[2].plot(kd, label="Kills", color="red")
     axes[0].set_title(f"Loss Over Epochs | Episodes: {episodes}")
-    axes[1].set_title(f"K/D Over Epochs | Episodes: {episodes}")
-    plt.xlabel("Number of Episodes")
-    plt.ylabel("Loss")
+    axes[1].set_title(f"Reward Over Epochs | Episodes: {episodes}")
+    axes[2].set_title(f"Kills Over Epochs | Episodes: {episodes}")
+    # plt.xlabel("Number of Episodes")
+    # plt.ylabel("Loss")
     plt.legend(loc="best")
     plt.show(block=True)

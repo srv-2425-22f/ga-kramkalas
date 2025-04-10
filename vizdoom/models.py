@@ -195,9 +195,13 @@ class ViT(nn.Module):
     #     self.cell_state = torch.zeros(batch_size, self.lstm.hidden_size, device=device)
 
     def forward(self, image: torch.Tensor, game_values: torch.Tensor):
+        image = image.unsqueeze(dim=0)
+        game_values = game_values.unsqueeze(dim=0)
         B = image.shape[0]
         x = self.patch_embed(image)
         cls_token = self.cls_token.expand(B, -1, -1)
+        # print(x.shape)
+        # print(cls_token.shape)
         x = torch.cat([cls_token, x], dim=1)
         x += self.pos_embed
         x = self.transformer(x)
