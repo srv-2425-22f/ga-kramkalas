@@ -4,19 +4,19 @@ import torch.optim as optim
 import os
 
 class CNN(nn.Module):
-    """A Convolutional Neural Network for processing image inputs and outputting action predictions.
-    
-    Args:
-        in_channels (int): Number of input channels (e.g., 3 for RGB images)
-        hidden_size (int): Base size for hidden layers (will be doubled in second conv layer)
-        action_space (float): Size of the output action space
-    """
     def __init__(
         self,
         in_channels: int,
         hidden_size: int,
         action_space: float,
-    ):      
+    ):
+        """
+        Initializes a Convolutional Neural Network model which takes in an image
+
+        Args:
+            in_channels: Number of color channels of the image
+            hidden_size
+        """
         super().__init__()
 
         self.conv = nn.Sequential(
@@ -45,34 +45,20 @@ class CNN(nn.Module):
         self.classifier = nn.Sequential(
             nn.Flatten(start_dim=0, end_dim=-1),
             nn.Linear(in_features=flattened_size, out_features=action_space),
+            # nn.ReLU(),
+            # nn.Linear(in_features=1024, out_features=action_space),
         )
 
-    def _forward(self, x: torch.Tensor):
-        """Forward pass through convolutional layers only.
-        
-        Args:
-            x (torch.Tensor): Input tensor
-            
-        Returns:
-            torch.Tensor: Output after convolutional layers
-        """
+    def _forward(self, x):
         x = self.conv(x)
         return x
 
-    def forward(self, x: torch.Tensor):
-        """Complete forward pass through the network.
-        
-        Args:
-            x (torch.Tensor): Input tensor
-            
-        Returns:
-            torch.Tensor: Output predictions
-        """
+    def forward(self, x):
         x = self._forward(x)
         x = self.classifier(x)
         return x
     
-    def save(self, file_name: str="model.pth"):
+    def save(self, file_name="model.pth"):
         path = "./saved_models"
         if not os.path.exists(path):
             os.makedirs(path)
@@ -80,14 +66,6 @@ class CNN(nn.Module):
         torch.save(self.state_dict(), file_name)
 
 class DQN(nn.Module):
-    """Deep Q-Network with convolutional layers and LSTM temporal encoding.
-    
-    Args:
-        in_channels (int): Number of input channels
-        hidden_size (int): Base size for hidden layers
-        action_space (float): Size of the output action space
-        game_value_size (int): Size of additional game state values to incorporate
-    """
     def __init__(
         self,
         in_channels: int,
@@ -95,6 +73,14 @@ class DQN(nn.Module):
         action_space: float,
         game_value_size: int
     ):
+        """_summary_
+
+        Args:
+            in_channels (int): _description_
+            hidden_size (int): _description_
+            action_space (float): _description_
+            game_value_size (int): _description_
+        """
         super().__init__()
 
         self.conv = nn.Sequential(
@@ -114,6 +100,7 @@ class DQN(nn.Module):
                 padding=0,
             ),
             nn.ReLU(),
+            # nn.Tanh()
         )
         dummy_input = torch.randn(3, 120, 160)
         dummy_input = self._forward(dummy_input)
@@ -135,42 +122,30 @@ class DQN(nn.Module):
         self.hidden_state = None
         self.cell_state = None   
 
-    def _forward(self, x: torch.Tensor):
-        """Forward pass through convolutional layers only.
-        
-        Args:
-            x (torch.Tensor): Input tensor
-            
-        Returns:
-            torch.Tensor: Output after convolutional layers
-        """
+    def _forward(self, x):
         x = self.conv(x)
         return x
 
     def forward(self, image: torch.Tensor, game_values: torch.Tensor):
-        """Complete forward pass through the network.
-        
-        Args:
-            image (torch.Tensor): Input image tensor
-            game_values (torch.Tensor): Additional game state values
-            
-        Returns:
-            torch.Tensor: Output predictions
-        """
         x = self._forward(image)
+        # print(f"Conv mean: {x.mean().item()}")
         x = self.flatten(x)
         x = torch.cat((x.unsqueeze(0), game_values.unsqueeze(0)), dim=1)
+        # print(f"Flatten mean: {x.mean().item()}")
         x = self.linear(x)
+        # print(f"Linear mean: {x.mean().item()}")
         x, _ = self.temporal_encoder(x) # Returns short-term memory and long-term memory. Short-term is for prediction
+        # print(f"LSTM mean: {x.mean().item()}\n")
         x = self.classifier(x)
         return x
     
-    def save(self, file_name: str="model.pth"):
-        """Save the model's state dictionary to file.
-        
-        Args:
-            file_name (str): Name of the file to save the model to
-        """
+    def initialize_hidden(self, batch_size: int):
+        """Call this at the start of each episode"""
+        device = next(self.parameters()).device
+        self.hidden_state = torch.zeros(batch_size, self.temporal_encoder.hidden_size, device=device)
+        self.cell_state = torch.zeros(batch_size, self.temporal_encoder.hidden_size, device=device)
+    
+    def save(self, file_name="model.pth"):
         path = "./saved_models"
         if not os.path.exists(path):
             os.makedirs(path)
@@ -178,18 +153,6 @@ class DQN(nn.Module):
         torch.save(self.state_dict(), file_name)
 
 class ViT(nn.Module):
-    """Vision Transformer for processing image inputs and game state values.
-    
-    Args:
-        image_size (tuple[int, int]): Input image dimensions (height, width)
-        in_channels (int): Number of input channels
-        action_space (int): Size of the output action space
-        game_value_size (int): Size of additional game state values
-        patch_size (int): Size of image patches (default: 16)
-        embed_dim (int): Dimension of embedding (default: 768)
-        depth (int): Number of transformer layers (default: 3)
-        n_heads (int): Number of attention heads (default: 3)
-    """
     def __init__(self, 
                  image_size: tuple[int, int], # (H=240, W=320)
                  in_channels: int, 
@@ -198,7 +161,7 @@ class ViT(nn.Module):
                  patch_size: int=16,
                  embed_dim: int=768, 
                  depth: int=3,
-                 n_heads: int=3
+                 n_heads: int=3,
     ):
         super().__init__()
         self.patch_embed = PatchEmbedding(image_size, patch_size, in_channels, embed_dim)
@@ -208,40 +171,50 @@ class ViT(nn.Module):
             TransformerEncoderLayer(embed_dim, n_heads) for _ in range(depth)
         ])
 
+        # OM MAN ANVÄNDER LSTM #
+        # self.fc_before_lstm = nn.Sequential(
+        #     nn.Linear(embed_dim + game_value_size, 256), # linear uses images data and game values
+        #     nn.LayerNorm(256),
+        #     nn.Tanh(),
+        # )
+        # self.temporal_encoder = nn.LSTMCell(256, 256)
+        # self.classifier = nn.Linear(256, action_space)
+        #
+        # self.hidden_state = None
+        # self.cell_state = None
+
+        # OM MAN INTE ANVÄNDER LSTM #
         self.classifier = nn.Linear(embed_dim + game_value_size, action_space)
 
+    
+    # def initialize_hidden(self, batch_size: int):
+    #     """Call this at the start of each episode"""
+    #     # model.initialize_hidden(batch_size=32)
+    #     device = next(self.parameters()).device
+    #     self.hidden_state = torch.zeros(batch_size, self.lstm.hidden_size, device=device)
+    #     self.cell_state = torch.zeros(batch_size, self.lstm.hidden_size, device=device)
+
     def forward(self, image: torch.Tensor, game_values: torch.Tensor):
-        """Forward pass through the Vision Transformer.
-        
-        Args:
-            image (torch.Tensor): Input image tensor
-            game_values (torch.Tensor): Additional game state values
-            
-        Returns:
-            torch.Tensor: Output predictions
-        """
         image = image.unsqueeze(dim=0)
         game_values = game_values.unsqueeze(dim=0)
         B = image.shape[0]
         x = self.patch_embed(image)
         cls_token = self.cls_token.expand(B, -1, -1)
+        # print(x.shape)
+        # print(cls_token.shape)
         x = torch.cat([cls_token, x], dim=1)
         x += self.pos_embed
         x = self.transformer(x)
         x = x[:, 0]
         x = torch.cat([x, game_values], dim=1)
 
+        # OM MAN ANVÄNDER LSTM #
+        # x = self.fc_before_lstm(x)
+        # x = self.temporal_encoder(x)
+
         return self.classifier(x)
 
 class PatchEmbedding(nn.Module):
-    """Module for converting images into patch embeddings.
-    
-    Args:
-        image_size (tuple[int, int]): Input image dimensions (height, width)
-        patch_size (int): Size of image patches
-        in_channels (int): Number of input channels
-        embed_dim (int): Dimension of embedding
-    """
     def __init__(self,
                  image_size: tuple[int, int], # (H, W)
                  patch_size: int, 
@@ -256,32 +229,16 @@ class PatchEmbedding(nn.Module):
         self.n_patches = (image_size[0] // patch_size) * (image_size[1] // patch_size)
     
     def forward(self, x: torch.Tensor):
-        """Convert input image into patch embeddings.
-        
-        Args:
-            x (torch.Tensor): Input image tensor
-            
-        Returns:
-            torch.Tensor: Patch embeddings
-        """
         x = self.proj(x) # (B, D, H/P, W/P)
         x = x.flatten(2).transpose(1, 2) # (B, N, D)
         return x
 
 class TransformerEncoderLayer(nn.Module):
-    """Single transformer encoder layer with multi-head self-attention.
-    
-    Args:
-        embed_dim (int): Dimension of embeddings
-        n_heads (int): Number of attention heads
-        mlp_ratio (float): Ratio for hidden dimension in MLP (default: 4.0)
-        dropout (float): Dropout rate (default: 0.1)
-    """
     def __init__(self, 
-                 embed_dim: int, 
-                 n_heads: int, 
-                 mlp_ratio: float=4.0, 
-                 dropout: float=0.1):
+                 embed_dim, 
+                 n_heads, 
+                 mlp_ratio=4.0, 
+                 dropout=0.1):
         super().__init__()
         self.norm1 = nn.LayerNorm(embed_dim)
         self.attn = nn.MultiheadAttention(embed_dim, n_heads, dropout=dropout, batch_first=True)
@@ -295,44 +252,20 @@ class TransformerEncoderLayer(nn.Module):
         )
 
     def forward(self, x: torch.Tensor):
-        """Forward pass through the transformer layer.
-        
-        Args:
-            x (torch.Tensor): Input tensor
-            
-        Returns:
-            torch.Tensor: Output after self-attention and MLP
-        """
         x = x + self.attn(self.norm1(x), self.norm1(x), self.norm1(x))[0]
         x = x + self.mlp(self.norm2(x))
         return x
 
 class QTrainer:
-    """Training utility for Q-learning models.
-    
-    Args:
-        model (nn.Module): The model to train
-        lr (float): Learning rate for optimizer
-    """
-    def __init__(self, model: nn.Module, lr: float):
+    def __init__(self, model, lr):
         self.lr = lr
         self.model = model
         self.optimizer = optim.Adam(model.parameters(), lr=self.lr)
         self.loss_fn = nn.MSELoss()
 
-    def optimize_model(self, pred: torch.Tensor, target: torch.Tensor):
-        """Perform one optimization step.
-        
-        Args:
-            pred (torch.Tensor): Model predictions
-            target (torch.Tensor): Target values
-            
-        Returns:
-            float: Loss value
-        """
+    def optimize_model(self, pred, target):
         loss = self.loss_fn(pred, target)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
         return loss.cpu().detach().numpy()
-    

@@ -23,10 +23,10 @@ learning_rate = 0               # Learning rate for the optimizer
 n_episodes = 5                  # Total number of training episodes
 when_show = 0                   # Episode number when to start showing game visuals
 when_decay = 4000               # Episode number when to start epsilon decay
-start_epsilon = 0               # Initial exploration rate
 BATCH_SIZE = 32                 # Batch size for training
+start_epsilon = 0               # Initial exploration rate
 epsilon_decay = 0.995           # Rate at which exploration decreases
-end_epsilon = 0                 # Minimum exploration rate
+end_epsilon = 0.05                 # Minimum exploration rate
 
 # Initialize the VizDoom environment
 env = gymnasium.make("VizdoomDeathmatch-v0")
@@ -40,6 +40,7 @@ action_space = int(env.action_space.n)
 
 # Determine device for testing
 device = "cuda" if torch.cuda.is_available else "cpu"
+device = "cpu"
 print(device)
 
 # Initialize models
@@ -49,8 +50,8 @@ print(device)
 # ViT MODELLEN
 model = ViT((120, 160), 3, action_space, game_variables)
 target_model = ViT((120, 160), 3, action_space, game_variables)
-model.load_state_dict(torch.load("D:\GA-kalas\GA\ga-kramkalas\saved_models\\vit_20k_extended_1800_GOOD.pth"))
-target_model.load_state_dict(torch.load("D:\GA-kalas\GA\ga-kramkalas\saved_models\\vit_20k_extended_1800_GOOD.pth"))
+# model.load_state_dict(torch.load("D:\GA-kalas\GA\ga-kramkalas\saved_models\\vit_20k_extended_1800_GOOD.pth"))
+# target_model.load_state_dict(torch.load("D:\GA-kalas\GA\ga-kramkalas\saved_models\\vit_20k_extended_1800_GOOD.pth"))
 
 # Initialize the RL agent
 agent = Basic(
@@ -157,5 +158,5 @@ end_time = time.time()
 print(f"Started testing at: {time.localtime(start_time)}")
 print(f"Stopped testing at: {time.localtime(end_time)}")
 print(f"Total time testing: {(end_time - start_time)/60} min")
-
+print(frag_count)
 plot(n_episodes, loss, rewards, frag_count)

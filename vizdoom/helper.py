@@ -36,7 +36,7 @@ def plot_loss_live(loss):
     plt.plot(loss)
     plt.text(len(loss)-1, loss[-1], str(loss[-1]))
     plt.show(block=False)
-    plt.pause(.1)
+    plt.pause(.01)
 
 def accuracy_fn(y_true: torch.Tensor, y_pred: torch.Tensor):
     """Calculates accuracy between truth labels and predictions.
@@ -61,6 +61,11 @@ def plot(episodes, loss, rewards, kd):
         rewards (list): List of reward values over training
         kd (list): List of kill/death ratio values over training
     """
+    kd = [int(x) for x in kd]
+    print(kd)
+    print(rewards)
+
+    # kd = [1,2,4,3,5]
     for i in range(len(rewards)):
         reward = np.float32(rewards[i])
         rewards[i] = reward
