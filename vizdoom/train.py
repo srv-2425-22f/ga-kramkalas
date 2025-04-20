@@ -7,49 +7,51 @@ from helper import plot_image_live, plot_loss_live, plot
 from agents import Basic
 import time
 
-# import tqdm
 from models import CNN, DQN, ViT
 import random
-# from torch.profiler import profile, record_function, ProfilerActivity # import profiler
 
+# Set random seeds for reproducibility
 torch.cuda.manual_seed(42)
 torch.manual_seed(42)
 np.random.seed(42)
 random.seed(42)
 
+# HYPERPARAMETERS (VARIABLES THAT CAN BE MODIFIED)
+learning_rate = 0.005           # Learning rate for the optimizer
+n_episodes = 5_000              # Total number of training episodes
+when_show = 5_000               # Episode number when to start showing game visuals
+when_decay = 0                  # Episode number when to start epsilon decay
+start_epsilon = 0.20            # Initial exploration rate
+BATCH_SIZE = 32                 # Batch size for training
+epsilon_decay = 0.999           # Rate at which exploration decreases
+end_epsilon = 0.05              # Minimum exploration rate
+update_frequency = 500          # How often to update target network (in episodes)
+
+# Initialize the VizDoom environment
 env = gymnasium.make("VizdoomDeathmatch-v0")
 doom_game = env.unwrapped.game
-# observation, info = env.reset()
-# image = np.array(observation["screen"])
-# print(image.shape) # (120, 160, 3)
-
-learning_rate = 0.005
-n_episodes = 150_000
-when_show = 150_000
-when_decay = 50_000
-start_epsilon = 1
-BATCH_SIZE = 32
-epsilon_decay = 0.9999
-end_epsilon = 0.05
-update_frequency = 2_000
-action_space = int(env.action_space.n)
-
-device = "cuda" if torch.cuda.is_available else "cpu"
-# device = "cpu"
-print(device)
-game_variables = env.observation_space["gamevariables"].shape
-game_variables = game_variables[0] + 1 # +1 för enemy_on_screen
-
 env = gymnasium.wrappers.RecordEpisodeStatistics(env, buffer_length=n_episodes)
 
-model = DQN(3,32,action_space,game_variables)
-# model = ViT((120, 160), 3, action_space, game_variables)
-# model.load_state_dict(torch.load("saved_models/skjut_60.pth"))
-target_model = DQN(3,32,action_space,game_variables)
-# target_model = ViT((120, 160), 3, action_space, game_variables)
-# target_model.load_state_dict(torch.load("saved_models/skjut_60.pth"))
+# Get game variables shape and add one for enemy_on_screen feature and define number of actions possible
+game_variables = env.observation_space["gamevariables"].shape
+game_variables = game_variables[0] + 1 # +1 för enemy_on_screen
+action_space = int(env.action_space.n)
 
+# Determine device for training
+device = "cuda" if torch.cuda.is_available else "cpu"
+print(device)
 
+# Initialize models
+# DQN MODEL
+# model = DQN(3,32,action_space,game_variables)
+# target_model = DQN(3,32,action_space,game_variables)
+# ViT MODEL
+model = ViT((120, 160), 3, action_space, game_variables)
+target_model = ViT((120, 160), 3, action_space, game_variables)
+model.load_state_dict(torch.load("D:\GA-kalas\GA\ga-kramkalas\saved_models\\vit_20k_extended_1800_GOOD.pth"))
+target_model.load_state_dict(torch.load("D:\GA-kalas\GA\ga-kramkalas\saved_models\\vit_20k_extended_1800_GOOD.pth"))
+
+# Initialize the RL agent
 agent = Basic(
     env=env,
     learning_rate=learning_rate,
@@ -61,28 +63,27 @@ agent = Basic(
     device=device,
 )
 
+# Synchronize target model with main model
 agent.update_target_model()
 
-frag_count = []
-death_count = []
-loss = []
-rewards = []
+# Initialize lists for tracking metrics
+frag_count = []    # Tracks frags per episode
+death_count = []    # Tracks deaths per episode
+loss = []          # Tracks loss per episode
+rewards = []       # Tracks total reward per episode
 
+# Training loop
 start_time = time.time()
 print(f"Started training at: {time.localtime(start_time)}")
-# with profile(
-#     activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
-#     record_shapes=True,
-#     with_stack=True,
-#     schedule=torch.profiler.schedule(wait=1, warmup=1, active=3, repeat=2)
-# ) as prof:
+
 for episode in range(n_episodes):
-    # print(f"\nEpisode: {episode}")7
+    # Reset environment and process initial observation
     obs, info = env.reset()
     obs["screen"] = obs["screen"].reshape(3, 120, 160)
     enemy_on_screen = agent.enemies_on_screen()
     obs["gamevariables"] = np.append(obs["gamevariables"], enemy_on_screen)
 
+    # Initialize episode variables
     done = False
     num_steps = 0
     total_loss = 0
@@ -91,9 +92,7 @@ for episode in range(n_episodes):
     frags = 0
     deaths = 0
 
-    # agent.model.initialize_hidden(batch_size=32)
-    # agent.target_model.initialize_hidden(batch_size=32)
-
+    # Episode loop
     while not done:
         action = agent.get_action(obs)
         try:
@@ -105,6 +104,8 @@ for episode in range(n_episodes):
         frag = obs["gamevariables"][0]
         frags += (frag)
 
+        deaths += obs["gamevariables"][1]+1
+
         enemy_on_screen = agent.enemies_on_screen()
         if enemy_on_screen and action == 5:
             reward += 50
@@ -113,40 +114,33 @@ for episode in range(n_episodes):
         
         total_reward += reward
 
-        # print(f"\n\nEnemy on screen during loop? {enemy_on_screen}")
-        next_obs["gamevariables"] = np.append(next_obs["gamevariables"], enemy_on_screen)     
-        
+        # Process next observation
+        next_obs["gamevariables"] = np.append(next_obs["gamevariables"], enemy_on_screen)          
         next_obs["screen"] = next_obs["screen"].reshape(3, 120, 160)
         done = terminated or truncated
 
+        # Train every 4 steps
         if num_steps % 4 == 0:
             agent.train(obs, action, reward, next_obs, done)
             total_loss += agent.loss
             num_train_steps += 1
-            # print(f"Loss: {agent.loss}")
 
-        agent.remember(
-            obs, action, reward, next_obs, done
-        )
+        # Store experience in replay memory
+        agent.remember(obs, action, reward, next_obs, done)
 
         image = np.array(obs["screen"]).reshape(120, 160, 3)
         if episode > when_show:
-            # print(f"Enemy on screen before sending to plot? {enemy_on_screen}")
             plot_image_live(image, episode)
 
         obs = next_obs
-        num_steps += 1
-
-        frags += obs["gamevariables"][0]
-        deaths += obs["gamevariables"][1]+1
+        num_steps += 1       
 
     frag_count.append(frags)
     death_count.append(deaths)
     rewards.append(total_reward)
-    # print(frag_count, death_count)
 
     if loss and agent.loss < np.min(loss):
-        torch.save(agent.model.state_dict(), "saved_models/nu_snela_skjut_best.pth")
+        torch.save(agent.model.state_dict(), "saved_models/vit_20k_extended_best.pth")
         pass
     if num_train_steps > 0:
         avg_loss = total_loss / num_train_steps
@@ -158,18 +152,15 @@ for episode in range(n_episodes):
         print(f"Training @ episode: {episode}")
         agent.train_long(BATCH_SIZE)
         agent.update_target_model()
-        torch.save(agent.model.state_dict(), f"saved_models/nu_snela_skjut_{episode}.pth")
+        torch.save(agent.model.state_dict(), f"saved_models/vit_20k_extended_{episode}.pth")
 
     if episode > when_decay:
         agent.decay_epsilon()
 
-    # prof.step()
-
+# Training complete
 end_time = time.time()
 print(f"Started training at: {time.localtime(start_time)}")
 print(f"Stopped training at: {time.localtime(end_time)}")
 print(f"Total time trained: {(end_time - start_time)/60} min")
 
 plot(n_episodes, loss, rewards, frag_count)  
-
-# print(prof.key_averages().table(sort_by="cuda_time_total", row_limit=20))
