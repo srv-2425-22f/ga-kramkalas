@@ -5,7 +5,7 @@ ga-kramkalas created by GitHub Classroom
 Utveckla kunskaper inom reinforcement-learning samt PyTorch.
 
 ## MÅL:
-Skapa en AI-modell som kan vara en fiende i ett spel.
+<!-- Skapa en AI-modell som kan vara en fiende i ett spel. -->
 
 ## KRAV:
 
