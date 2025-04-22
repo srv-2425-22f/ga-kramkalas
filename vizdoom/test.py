@@ -45,13 +45,13 @@ print(device)
 
 # Initialize models
 # DQN MODELLEN
-# model = DQN(3,32,action_space,game_variables)
-# target_model = DQN(3,32,action_space,game_variables)
+model = DQN(3,32,action_space,game_variables)
+target_model = DQN(3,32,action_space,game_variables)
 # ViT MODELLEN
-model = ViT((120, 160), 3, action_space, game_variables)
-target_model = ViT((120, 160), 3, action_space, game_variables)
-# model.load_state_dict(torch.load("D:\GA-kalas\GA\ga-kramkalas\saved_models\\vit_20k_extended_1800_GOOD.pth"))
-# target_model.load_state_dict(torch.load("D:\GA-kalas\GA\ga-kramkalas\saved_models\\vit_20k_extended_1800_GOOD.pth"))
+# model = ViT((120, 160), 3, action_space, game_variables)
+# target_model = ViT((120, 160), 3, action_space, game_variables)
+model.load_state_dict(torch.load("[PATH TO THE MODEL YOU WANT TO TRY]"))            # THIS LINE LOADS A MODEL (.pth file) FROM YOUR FILE SYSTEM
+target_model.load_state_dict(torch.load("[PATH TO THE MODEL YOU WANT TO TRY]"))     # THIS LINE LOADS A MODEL (.pth file) FROM YOUR FILE SYSTEM
 
 # Initialize the RL agent
 agent = Basic(
